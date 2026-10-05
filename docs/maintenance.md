@@ -20,4 +20,4 @@ git log --all --full-history -- home-preferences.json src/components
 
 ## Release
 
-See `docs/release.md`. Real Safari login, reboot, and GitHub branch-protection checks stay open until a person does them.
+See `docs/release.md` and `docs/operating.md`. Branch protection and the hosted checks are already on. Real Safari login and reboot stay open until a person does them.

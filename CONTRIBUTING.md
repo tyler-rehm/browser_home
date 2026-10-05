@@ -28,6 +28,6 @@ Do not add Tailwind Plus or Catalyst source. New UI uses the local components an
 
 ## Review
 
-Pull requests run the CI workflow on Node 22, 24, and 26. Dependency updates and lockfile changes go through the same checks plus dependency review. See `docs/maintenance.md` for how to read those findings.
+Open a pull request into `main`. The template is the checklist. CI runs on Node 22, 24, and 26, and CodeQL runs `analyze`. Dependency updates and lockfile changes go through the same checks plus dependency review.
 
-Repository ownership is the GitHub owner listed in `.github/CODEOWNERS`.
+`main` also requires one review from the owner in `.github/CODEOWNERS`. How to merge your own work, and how issues are filed, is `docs/operating.md`. See `docs/maintenance.md` for how to read CI and Dependabot findings.

@@ -33,4 +33,4 @@ That command formats, lints, runs unit tests, builds, runs Chromium and WebKit a
 - `src/` — page, validation, and the production server
 - `scripts/serve.js` — start the built site
 - `scripts/home-service.js` — optional macOS login service
-- `docs/` — architecture, backups, Safari, maintenance, and release
+- `docs/` — architecture, backups, Safari, maintenance, release, and how the repo runs (`docs/operating.md`)
