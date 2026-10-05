@@ -1,27 +1,36 @@
 # browser_home
 
-A local-first personal start page for Safari, built with React, Vite, and
-Tailwind CSS.
+A private start page for Safari on your own Mac. It is served at `http://127.0.0.1:4173` and keeps links, notes, and appearance in that browser origin.
 
-Public-release hardening is in progress. This initial repository contains the
-OpenSpec plan; redistributable application source will follow in verified,
-incremental commits. Proprietary Tailwind UI/Plus source is not included.
+Original code is MIT licensed. See `NOTICE` for fonts and dependencies. Tailwind Plus and Catalyst source is not included and must not be added.
 
-See [the implementation plan](openspec/changes/harden-public-release/tasks.md).
+## Use it
 
-## Run locally
-
-For the existing local checkout:
+Requirements: Node.js 22.13+, 24, or 26+.
 
 ```sh
-cd ~/Code/miscellaneous-tools/broswer_home
 npm ci
-npm run dev
+npm run build
+npm start
 ```
 
-Then open `http://127.0.0.1:4173`.
+Open `http://127.0.0.1:4173`. Do not switch to `localhost`; the browser treats that as different saved data.
 
-Quick links and scratchpad notes are saved only in the browser's local storage.
+`npm run dev` is the contributor Vite server on the same origin. The installed homepage uses `npm start`.
 
-Appearance preferences are saved automatically in local storage. Use the palette
-button to export or import a portable `home-preferences.json` file.
+Safari setup, login startup, backups, and troubleshooting are in `docs/safari-setup.md` and `docs/backups.md`.
+
+## Checks
+
+```sh
+npm run test:all
+```
+
+That command formats, lints, runs unit tests, builds, runs Chromium and WebKit against the production server, and audits tracked files. It does not change Safari or reboot the Mac. Those steps are listed in `docs/release.md` and are still open.
+
+## Layout
+
+- `src/` — page, validation, and the production server
+- `scripts/serve.js` — start the built site
+- `scripts/home-service.js` — optional macOS login service
+- `docs/` — architecture, backups, Safari, maintenance, and release
