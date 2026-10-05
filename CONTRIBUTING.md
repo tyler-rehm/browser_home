@@ -11,7 +11,7 @@ npm ci
 npm run dev
 ```
 
-Development serves `http://127.0.0.1:4173` through Vite. The daily homepage is the production build:
+Development serves `http://127.0.0.1:4173` through Vite. The daily homepage is the production build at the address pinned in `src/homepage.config.json` (`http://home.localhost:4173`):
 
 ```sh
 npm run build

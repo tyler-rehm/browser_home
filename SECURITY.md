@@ -18,4 +18,4 @@ Loopback binding is not authentication. Another process on this Mac, a malicious
 
 ## Data
 
-Links, notes, and appearance stay in the browser for `http://127.0.0.1:4173`. Search and link clicks are the user leaving that origin. The app does not send the scratchpad or backups anywhere.
+Links, notes, and appearance stay in the browser for `http://home.localhost:4173`. Search and link clicks are the user leaving that origin. The app does not send the scratchpad or backups anywhere.

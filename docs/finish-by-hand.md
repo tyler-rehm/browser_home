@@ -2,7 +2,7 @@
 
 The app is built. What is left is your real Safari, and a few GitHub checks that only count after they have actually run. Nobody else can click through Safari for you, and a reboot has to be a real reboot.
 
-The page only counts as your homepage when the address bar says `http://127.0.0.1:4173`. `localhost` is a different bucket, so notes saved there will not show up.
+The page only counts as your homepage when the address bar says `http://home.localhost:4173`. That name is pinned in `src/homepage.config.json`. `127.0.0.1` and `localhost` are different buckets, so notes saved there will not show up.
 
 ## 1. Start the page
 
@@ -14,13 +14,13 @@ npm run build
 npm start
 ```
 
-Leave that window open. Open `http://127.0.0.1:4173` once and confirm you see “Good evening.” If the port is already taken, stop the other copy and start again. The address does not move to another port.
+Leave that window open. Open `http://home.localhost:4173` once and confirm you see “Good evening.” If the port is already taken, stop the other copy and start again. The address does not move to another port.
 
 ## 2. Tell Safari to open it
 
 1. Open Safari.
 2. Safari menu → Settings → General.
-3. Homepage: paste `http://127.0.0.1:4173`.
+3. Homepage: paste `http://home.localhost:4173`.
 4. “New windows open with” → Homepage.
 5. “New tabs open with” → Homepage.
 6. Close Settings.
@@ -46,7 +46,7 @@ Then:
 1. System Settings → General → Login Items.
 2. Add Safari if you also want Safari itself to open at login.
 3. Restart the Mac.
-4. After you log in, wait a few seconds and open Safari. `http://127.0.0.1:4173/health` should say `ok`, and a new window should be the homepage.
+4. After you log in, wait a few seconds and open Safari. `http://home.localhost:4173/health` should say `ok`, and a new window should be the homepage.
 
 If it does not come up, look at `~/Library/Logs/browser-home/home.err`.
 

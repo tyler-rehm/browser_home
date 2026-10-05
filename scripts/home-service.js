@@ -88,12 +88,16 @@ export function install(deps) {
   if (!fs.existsSync(index) || !fs.statSync(index).isFile()) {
     return fail('Built assets are missing. Run `npm run build` first.')
   }
+  if (!deps.configFile || !fs.existsSync(deps.configFile)) {
+    return fail('Homepage address config is missing.')
+  }
   const paths = servicePaths(deps.home)
   fs.rmSync(paths.staging, { recursive: true, force: true })
   fs.mkdirSync(paths.staging, { recursive: true, mode: 0o755 })
   fs.mkdirSync(paths.logDir, { recursive: true, mode: 0o755 })
   fs.cpSync(deps.buildDir, path.join(paths.staging, 'dist'), { recursive: true })
   fs.copyFileSync(deps.serverFile, path.join(paths.staging, 'server.js'))
+  fs.copyFileSync(deps.configFile, path.join(paths.staging, 'homepage.config.json'))
   fs.chmodSync(path.join(paths.staging, 'server.js'), 0o644)
   try {
     replaceInstall(paths.staging, paths.current, paths.previous)
@@ -177,6 +181,10 @@ function liveDeps(argv) {
     nodePath: process.execPath,
     buildDir: path.resolve(buildFlag >= 0 ? argv[buildFlag + 1] : path.join(process.cwd(), 'dist')),
     serverFile: path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/server.js'),
+    configFile: path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '../src/homepage.config.json',
+    ),
     execFile: execFileSync,
     run(command, args) {
       try {

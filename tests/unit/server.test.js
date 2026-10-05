@@ -3,11 +3,16 @@ import fs from 'node:fs'
 import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  HOMEPAGE,
+  allowedHosts,
   assertBuild,
   createHomepageServer,
   formatListenError,
+  isDirectRun,
+  loadHomepageConfig,
   securityHeaders,
 } from '../../src/server'
 
@@ -90,6 +95,9 @@ describe('production server', () => {
     }
     expect(method.status).toBe(405)
     expect(host.status).toBe(421)
+    const named = await request({ port, host: `${HOMEPAGE.publicHost}:${port}` })
+    expect(named.status).toBe(200)
+    expect(allowedHosts(port).has(`${HOMEPAGE.publicHost}:${port}`)).toBe(true)
   })
 
   it('reports a missing build and an occupied port without changing origin', async () => {
@@ -98,6 +106,27 @@ describe('production server', () => {
     const { root, port } = await site()
     const conflict = createHomepageServer({ root, port })
     await expect(conflict.listen()).rejects.toMatchObject({ code: 'EADDRINUSE' })
-    expect(formatListenError({ code: 'EADDRINUSE' }, 4173)).toContain('http://127.0.0.1:4173')
+    expect(formatListenError({ code: 'EADDRINUSE' }, 4173)).toContain('http://home.localhost:4173')
+  })
+
+  it('accepts only a loopback name in the address config', () => {
+    const file = path.join(
+      fs.mkdtempSync(path.join(os.tmpdir(), 'home-config-')),
+      'homepage.config.json',
+    )
+    fs.writeFileSync(file, '{"publicHost":"home.localhost"}\n')
+    expect(loadHomepageConfig(file).publicHost).toBe('home.localhost')
+    fs.writeFileSync(file, '{"publicHost":"example.com"}\n')
+    expect(() => loadHomepageConfig(file)).toThrow(/\.localhost/)
+    fs.writeFileSync(file, '{"publicHost":"home.localhost","port":80}\n')
+    expect(() => loadHomepageConfig(file)).toThrow(/publicHost/)
+  })
+
+  it('starts only when node executes server.js itself', () => {
+    const server = path.join(os.tmpdir(), 'server.js')
+    const wrapper = path.join(os.tmpdir(), 'serve.js')
+    expect(isDirectRun(pathToFileURL(server).href, server)).toBe(true)
+    expect(isDirectRun(pathToFileURL(server).href, wrapper)).toBe(false)
+    expect(isDirectRun(pathToFileURL(server).href, undefined)).toBe(false)
   })
 })

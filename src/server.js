@@ -1,10 +1,45 @@
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 export const DEFAULT_HOST = '127.0.0.1'
 export const DEFAULT_PORT = 4173
+const CONFIG_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'homepage.config.json')
+
+export function loadHomepageConfig(filePath = CONFIG_PATH) {
+  let parsed
+  try {
+    parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'))
+  } catch {
+    throw new Error('homepage.config.json could not be read.')
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('homepage.config.json must be an object with publicHost.')
+  }
+  if (Object.keys(parsed).join(',') !== 'publicHost' || typeof parsed.publicHost !== 'string') {
+    throw new Error('homepage.config.json only accepts publicHost.')
+  }
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)*\.localhost$/.test(parsed.publicHost)) {
+    throw new Error('publicHost must be a hostname ending in .localhost.')
+  }
+  return { publicHost: parsed.publicHost }
+}
+
+export const HOMEPAGE = loadHomepageConfig()
+
+export function isDirectRun(moduleUrl, argv1) {
+  if (!argv1) return false
+  return moduleUrl === pathToFileURL(path.resolve(argv1)).href
+}
+
+export function homepageOrigin(port = DEFAULT_PORT) {
+  return `http://${HOMEPAGE.publicHost}:${port}`
+}
+
+export function allowedHosts(port) {
+  return new Set([`${DEFAULT_HOST}:${port}`, `localhost:${port}`, `${HOMEPAGE.publicHost}:${port}`])
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -57,7 +92,7 @@ export function assertBuild(root) {
 
 export function formatListenError(error, port = DEFAULT_PORT) {
   if (error?.code === 'EADDRINUSE') {
-    return `Port ${port} is already in use. The homepage stays at http://${DEFAULT_HOST}:${port}. Stop the other process and retry.`
+    return `Port ${port} is already in use. The homepage stays at ${homepageOrigin(port)}. Stop the other process and retry.`
   }
   return 'The homepage server could not start.'
 }
@@ -84,8 +119,7 @@ export function handleHomepageRequest(req, res, { root, port }) {
     send(req, res, 405, 'Method not allowed', 'text/plain; charset=utf-8', { allow: 'GET, HEAD' })
     return
   }
-  const allowedHosts = new Set([`${DEFAULT_HOST}:${port}`, `localhost:${port}`])
-  if (!req.headers.host || !allowedHosts.has(req.headers.host)) {
+  if (!req.headers.host || !allowedHosts(port).has(req.headers.host)) {
     send(req, res, 421, 'Misdirected request')
     return
   }
@@ -131,29 +165,58 @@ export function handleHomepageRequest(req, res, { root, port }) {
   send(req, res, 200, fs.readFileSync(real), type)
 }
 
-export function createHomepageServer({ root, host = DEFAULT_HOST, port = DEFAULT_PORT }) {
+function listenOn(server, host, port) {
+  return new Promise((resolve, reject) => {
+    const onError = (error) => reject(error)
+    server.once('error', onError)
+    server.listen(port, host, () => {
+      server.off('error', onError)
+      resolve(server.address())
+    })
+  })
+}
+
+function closeServer(server) {
+  return new Promise((resolve, reject) => {
+    if (!server.listening) {
+      resolve()
+      return
+    }
+    server.close((error) => (error ? reject(error) : resolve()))
+  })
+}
+
+export function createHomepageServer({
+  root,
+  host = DEFAULT_HOST,
+  port = DEFAULT_PORT,
+  also = [],
+}) {
   const rootReal = fs.realpathSync(root)
-  const server = http.createServer((req, res) => {
-    const address = server.address()
+  const onRequest = (req, res) => {
+    const address = primary.address()
     const boundPort = address && typeof address === 'object' ? address.port : port
     handleHomepageRequest(req, res, { root: rootReal, port: boundPort })
-  })
+  }
+  const primary = http.createServer(onRequest)
+  const extras = also.map(() => http.createServer(onRequest))
   return {
-    server,
+    server: primary,
     listen() {
-      return new Promise((resolve, reject) => {
-        const onError = (error) => reject(error)
-        server.once('error', onError)
-        server.listen(port, host, () => {
-          server.off('error', onError)
-          resolve(server.address())
-        })
+      return listenOn(primary, host, port).then(async (address) => {
+        for (const [index, extraHost] of also.entries()) {
+          try {
+            await listenOn(extras[index], extraHost, address.port)
+          } catch (error) {
+            const skip = error?.code === 'EADDRNOTAVAIL' || error?.code === 'EAFNOSUPPORT'
+            if (!skip) throw error
+          }
+        }
+        return address
       })
     },
     close() {
-      return new Promise((resolve, reject) => {
-        server.close((error) => (error ? reject(error) : resolve()))
-      })
+      return Promise.all([primary, ...extras].map((server) => closeServer(server)))
     },
   }
 }
@@ -171,10 +234,10 @@ export function main(argv = process.argv.slice(2)) {
     process.exitCode = 1
     return
   }
-  const homepage = createHomepageServer({ root })
+  const homepage = createHomepageServer({ root, also: ['::1'] })
   homepage.listen().then(
     (address) => {
-      console.log(`Homepage at http://${DEFAULT_HOST}:${address.port}`)
+      console.log(`Homepage at ${homepageOrigin(address.port)}`)
     },
     (error) => {
       console.error(formatListenError(error, DEFAULT_PORT))
@@ -182,3 +245,5 @@ export function main(argv = process.argv.slice(2)) {
     },
   )
 }
+
+if (isDirectRun(import.meta.url, process.argv[1])) main()

@@ -6,7 +6,7 @@ Links, notes, and appearance in local storage. The built files. The LaunchAgent 
 
 ## Boundary
 
-The server accepts GET and HEAD from `127.0.0.1:4173` and `localhost:4173` only. Paths must stay inside the build directory after decoding and after `realpath`, including symbolic links. Errors are generic and do not include filesystem paths. Logs are lifecycle messages, not notes or request bodies.
+The server listens on `127.0.0.1` and `::1`, port 4173. It accepts GET and HEAD only when the Host header is `127.0.0.1:4173`, `localhost:4173`, or the pinned name from `src/homepage.config.json` (`home.localhost:4173`). Paths must stay inside the build directory after decoding and after `realpath`, including symbolic links. Errors are generic and do not include filesystem paths. Logs are lifecycle messages, not notes or request bodies.
 
 ## Accepted limits
 

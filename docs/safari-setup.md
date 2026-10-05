@@ -1,6 +1,6 @@
 # Safari and login startup
 
-The supported homepage origin is `http://127.0.0.1:4173`.
+The pinned homepage origin is `http://home.localhost:4173`. The name comes from `publicHost` in `src/homepage.config.json` and has to end in `.localhost`. The server listens on loopback port 4173. `127.0.0.1` and `localhost` answer too, and each name keeps its own saved links and notes.
 
 ## Serve the page
 
@@ -15,7 +15,7 @@ If the port is taken, the process stops and the origin does not change. If `dist
 ## Safari settings
 
 1. Safari → Settings → General.
-2. Homepage: `http://127.0.0.1:4173`.
+2. Homepage: `http://home.localhost:4173`.
 3. New windows open with: Homepage.
 4. New tabs open with: Homepage.
 

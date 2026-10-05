@@ -1,6 +1,6 @@
 # Backups
 
-Storage is per origin. Use `http://127.0.0.1:4173` every time. Data saved on `http://localhost:4173` will not appear on the documented origin.
+Storage is per origin. Use `http://home.localhost:4173` every time. Data saved on `http://127.0.0.1:4173` or `http://localhost:4173` will not appear on the pinned address.
 
 ## Version 1
 

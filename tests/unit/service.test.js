@@ -22,7 +22,9 @@ function fixture() {
   fs.writeFileSync(path.join(buildDir, 'index.html'), '<h1>home</h1>')
   fs.writeFileSync(nodePath, '')
   const serverFile = path.join(home, 'server.js')
+  const configFile = path.join(home, 'homepage.config.json')
   fs.writeFileSync(serverFile, 'export {}\n')
+  fs.writeFileSync(configFile, '{"publicHost":"home.localhost"}\n')
   const calls = []
   const deps = {
     platform: 'darwin',
@@ -31,6 +33,7 @@ function fixture() {
     nodePath,
     buildDir,
     serverFile,
+    configFile,
     execFile(command, args) {
       expect(command).toBe('plutil')
       fs.copyFileSync(args[2], args[4])
@@ -60,6 +63,9 @@ describe('macOS service', () => {
     expect(calls.some((call) => call[1] === 'bootstrap')).toBe(true)
     expect(fs.readFileSync(path.join(paths.current, 'dist', 'index.html'), 'utf8')).toContain(
       'home',
+    )
+    expect(fs.readFileSync(path.join(paths.current, 'homepage.config.json'), 'utf8')).toContain(
+      'home.localhost',
     )
     const other = path.join(home, 'Library', 'Application Support', 'other-app', 'keep.txt')
     fs.mkdirSync(path.dirname(other), { recursive: true })

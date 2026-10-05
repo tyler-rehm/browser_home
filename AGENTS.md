@@ -2,7 +2,7 @@
 
 ## Project
 
-Code Home is a local-first Safari homepage. React and Vite build a static page. A small Node server serves that build on `http://127.0.0.1:4173`. Browser storage stays in Safari. There is no backend, account, or analytics.
+Code Home is a local-first Safari homepage. React and Vite build a static page. A small Node server serves that build on loopback port 4173. The pinned origin is `http://home.localhost:4173`, from `src/homepage.config.json`. Browser storage stays in Safari. There is no backend, account, or analytics.
 
 ## Boundaries
 
