@@ -18,7 +18,7 @@ Open `http://127.0.0.1:4173`. Do not switch to `localhost`; the browser treats t
 
 `npm run dev` is the contributor Vite server on the same origin. The installed homepage uses `npm start`.
 
-Safari setup, login startup, backups, and troubleshooting are in `docs/safari-setup.md` and `docs/backups.md`.
+Safari setup, login startup, backups, and troubleshooting are in `docs/safari-setup.md` and `docs/backups.md`. The short click-path for the remaining Safari and reboot steps is `docs/finish-by-hand.md`.
 
 ## Checks
 
