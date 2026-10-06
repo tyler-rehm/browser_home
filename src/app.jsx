@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from 'react'
 import { LinkDialog } from './components/add-link-dialog'
 import { Button } from './components/button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from './components/dialog'
+import { GroupDialog } from './components/group-dialog'
 import { PreferencesDialog, SettingsDialog } from './components/preferences-dialog'
 import { DroppableTab, QuickLinkOverlay, SortableQuickLink } from './components/quick-link-card'
 import { DEFAULT_LINKS, DEFAULT_PREFERENCES, TOOLS } from './data'
@@ -100,9 +101,7 @@ export function App() {
   const [view, setView] = useState('all')
   const [page, setPage] = useState(1)
   const [linkQuery, setLinkQuery] = useState('')
-  const [newGroupName, setNewGroupName] = useState('')
-  const [groupError, setGroupError] = useState('')
-  const [renameDraft, setRenameDraft] = useState('')
+  const [groupEditor, setGroupEditor] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [draggedId, setDraggedId] = useState(null)
@@ -225,10 +224,7 @@ export function App() {
       return
     }
     setGroups(nextGroups)
-    if (view === id) {
-      setView('all')
-      setRenameDraft('')
-    }
+    if (view === id) setView('all')
     const nextLinks = links.map((link) => (link.groupId === id ? stripGroup(link) : link))
     const linkWrite = writeText(localStorage, KEYS.links, JSON.stringify(nextLinks))
     if (!linkWrite.ok) {
@@ -239,12 +235,9 @@ export function App() {
     remember(linkWrite)
   }
 
-  function selectView(next, draft) {
+  function selectView(next) {
     setView(next)
     setPage(1)
-    setGroupError('')
-    const group = groups.find((item) => item.id === next)
-    setRenameDraft(draft ?? group?.name ?? '')
   }
 
   function moveLink(fromId, toId) {
@@ -325,27 +318,11 @@ export function App() {
     globalThis.queueMicrotask(() => document.getElementById(`tab-${next}`)?.focus())
   }
 
-  function submitNewGroup(event) {
-    event.preventDefault()
-    const result = createGroup(newGroupName)
-    if (!result.ok) {
-      setGroupError(result.error)
-      return
-    }
-    setGroupError('')
-    setNewGroupName('')
-    selectView(result.group.id, result.group.name)
-  }
-
-  function submitRename(event) {
-    event.preventDefault()
-    if (!selectedGroup) return
-    const result = renameGroup(selectedGroup.id, renameDraft)
-    if (!result.ok) {
-      setGroupError(result.error)
-      return
-    }
-    setGroupError('')
+  function saveGroup(name) {
+    if (groupEditor?.group) return renameGroup(groupEditor.group.id, name)
+    const result = createGroup(name)
+    if (result.ok) selectView(result.group.id)
+    return result
   }
 
   function exportBackup() {
@@ -713,50 +690,28 @@ export function App() {
                     )}
                   </div>
                   {filtering ? null : (
-                    <form className="new-group" onSubmit={submitNewGroup}>
-                      <label htmlFor="new-group">New group</label>
-                      <input
-                        id="new-group"
-                        name="name"
-                        maxLength={LIMITS.groupName}
-                        autoComplete="off"
-                        placeholder="Work"
-                        value={newGroupName}
-                        onChange={(event) => setNewGroupName(event.target.value)}
-                      />
-                      <button className="text-button" type="submit">
-                        Add group
+                    <div className="group-actions">
+                      <button
+                        className="group-action"
+                        type="button"
+                        aria-label="Add group"
+                        onClick={() => setGroupEditor({ group: null })}
+                      >
+                        + Group
                       </button>
-                    </form>
+                      {selectedGroup ? (
+                        <button
+                          className="group-action"
+                          type="button"
+                          aria-label="Edit group"
+                          onClick={() => setGroupEditor({ group: selectedGroup })}
+                        >
+                          Edit
+                        </button>
+                      ) : null}
+                    </div>
                   )}
                 </div>
-                {filtering || !selectedGroup ? null : (
-                  <form className="rename-group" onSubmit={submitRename}>
-                    <label htmlFor="rename-group">Rename group</label>
-                    <input
-                      id="rename-group"
-                      value={renameDraft}
-                      maxLength={LIMITS.groupName}
-                      autoComplete="off"
-                      onChange={(event) => setRenameDraft(event.target.value)}
-                    />
-                    <button className="text-button" type="submit">
-                      Save name
-                    </button>
-                    <button
-                      className="text-button"
-                      type="button"
-                      onClick={() => setPendingDelete(selectedGroup)}
-                    >
-                      Delete group
-                    </button>
-                  </form>
-                )}
-                {groupError ? (
-                  <p role="alert" className="form-error">
-                    {groupError}
-                  </p>
-                ) : null}
                 <div className="live-region" aria-live="polite">
                   {filtering
                     ? `${viewLinks.length} ${viewLinks.length === 1 ? 'result' : 'results'}`
@@ -907,6 +862,13 @@ export function App() {
         <a href="https://github.com/tyler-rehm/browser_home">GitHub repository</a>
         <a href="mailto:tyler@ivyleaguetech.com">Email Tyler Rehm</a>
       </footer>
+      <GroupDialog
+        open={groupEditor !== null}
+        onClose={() => setGroupEditor(null)}
+        group={groupEditor?.group}
+        onSave={saveGroup}
+        onDelete={() => setPendingDelete(groupEditor?.group ?? null)}
+      />
       <LinkDialog
         open={editor !== null}
         onClose={() => setEditor(null)}

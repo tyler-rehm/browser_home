@@ -194,8 +194,7 @@ kbd {
 }
 .section-actions,
 .link-toolbar,
-.new-group,
-.rename-group,
+.group-actions,
 .pager {
   display: flex;
   align-items: center;
@@ -271,24 +270,19 @@ kbd {
   top: calc(100% + 6px);
 }
 .link-filter,
-.new-group,
-.rename-group {
+.group-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-.link-filter label,
-.new-group label,
-.rename-group label {
+.link-filter label {
   margin: 0;
   color: var(--ink);
   font: 600 12px var(--display-font);
   letter-spacing: 0;
   text-transform: none;
 }
-.link-filter input,
-.new-group input,
-.rename-group input {
+.link-filter input {
   width: 11rem;
   min-height: 44px;
   margin: 0;
@@ -299,15 +293,15 @@ kbd {
   color: var(--ink);
   font: 14px var(--display-font);
 }
-.new-group .text-button,
-.rename-group .text-button {
+.group-action {
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 5px;
   background: transparent;
-}
-.rename-group button[type='button'] {
-  color: var(--accent-text);
+  color: var(--ink);
+  font: 600 13px var(--display-font);
+  cursor: pointer;
 }
 .link-toolbar {
   flex-wrap: wrap;
@@ -334,10 +328,6 @@ kbd {
   color: var(--ink);
   border-color: var(--line);
   background: var(--card);
-}
-.rename-group {
-  justify-content: flex-end;
-  padding-top: 8px;
 }
 .empty-links {
   grid-column: 1 / -1;
@@ -460,8 +450,7 @@ kbd {
 .text-button:focus-visible,
 .tool:focus-visible,
 .link-filter input:focus-visible,
-.new-group input:focus-visible,
-.rename-group input:focus-visible,
+.group-action:focus-visible,
 .site-footer a:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
