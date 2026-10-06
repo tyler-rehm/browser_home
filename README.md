@@ -92,7 +92,7 @@ The Homepage field alone still opens Start Page if those two menus say Start Pag
 
 ## Accessibility
 
-The page is keyboard operable. Tab reaches the links and buttons. A skip link is the first stop. Dialogs trap focus, name themselves, and restore focus on Escape. Form errors are announced and tied to the fields. Reordering with the arrow keys is announced. Text can grow without trapping the scratchpad or tool list. `prefers-reduced-motion` turns off movement. Icon letters use a contrasting color on the chosen fill.
+The page is keyboard operable. On load, focus is in the search field, and Tab moves on from there. A skip link is the first control in the page. Dialogs trap focus, name themselves, and restore focus on Escape. Form errors are announced and tied to the fields. Reordering with the arrow keys is announced. Text can grow without trapping the scratchpad or tool list. `prefers-reduced-motion` turns off movement. Icon letters use a contrasting color on the chosen fill.
 
 ## Checks
 

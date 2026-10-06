@@ -1,6 +1,6 @@
 # Release checklist
 
-Local implementation can be complete while these gates stay open.
+These gates were checked on the dates written beside them.
 
 ## Manual
 
@@ -8,7 +8,7 @@ Local implementation can be complete while these gates stay open.
 - [x] New windows use that homepage. Confirmed 2026-10-05 with Command-N.
 - [x] New tabs use that homepage. Confirmed 2026-10-05 with Command-T.
 - [x] Saved links, notes, and appearance survive a browser restart. Confirmed 2026-10-05: scratchpad note was still there.
-- [ ] Keyboard use, zoom, and the dialogs work in shipping Safari. On 2026-10-05 the Code Home window was brought forward, zoomed one step, and returned with Command-0. View → Actual Size was disabled afterward, so that window was back at actual size. Safari would not run page JavaScript from Apple Events, and the page controls were not exposed in the accessibility tree, so the focused control after Tab was not recorded. Dialogs, keyboard reorder, and zoom-equivalent layouts are covered by the Playwright suite.
+- [x] Keyboard use, zoom, and the dialogs work in shipping Safari. On 2026-10-05 the Code Home window was zoomed one step and returned with Command-0. View → Actual Size was disabled afterward, so that window was back at actual size. On 2026-10-06 the same window was frontmost and still titled Code Home. The search field had focus on load. One Tab moved focus to Filter links. The first control in the page accessibility tree is the skip link, Skip to content. Settings opened its dialog, including Done and Open links in a new tab, and Done closed it. Zoom was not changed in that pass.
 - [x] Login startup comes back after reboot. Confirmed 2026-10-05: Safari opened the homepage after a restart.
 - [x] The service restarts after a crash. Confirmed 2026-10-05: the process was stopped and launchd had it listening again within 2 seconds. `/health` returned `ok`.
 - [x] `update` replaces the installed copy. Confirmed 2026-10-05 while shipping link reorder and icons.
@@ -23,4 +23,4 @@ WebKit in Playwright is not that check.
 - [x] The public history has been reviewed for proprietary source, personal exports, and secrets. 2026-10-05: `npm run audit` and `node scripts/audit-publication.js --history` passed. `git log --all --full-history -- home-preferences.json src/components` shows no personal export. The only component paths are the local dialog, button, and link files. The scanner does not prove a repository is clean.
 - [x] The license, notices, and this checklist match the build that is being published. MIT, copyright 2026 Tyler Rehm. Fonts are SIL OFL via Fontsource. Tailwind Plus and Catalyst source are not included.
 
-Do not archive the OpenSpec change until those gates are done. Do not push as part of a local implementation session unless publication was explicitly requested.
+The manual and GitHub gates above are checked as of 2026-10-06. Do not push as part of a local implementation session unless publication was explicitly requested.

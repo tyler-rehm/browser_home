@@ -17,4 +17,4 @@
 - Add a skip link, announce reorders and scratchpad saves, and tie link-form errors to the fields.
 - Document install, configuration, Safari, and the login helper in the README.
 
-The login helper was uninstalled and installed again on 2026-10-05. That command does not clear browser data. Shipping Safari keyboard focus was not readable from outside Safari.
+The login helper was uninstalled and installed again on 2026-10-05. That command does not clear browser data. On 2026-10-06, shipping Safari focused the search field on load, and one Tab moved focus to Filter links.
