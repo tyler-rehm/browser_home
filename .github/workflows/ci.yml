@@ -21,13 +21,45 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: npm
       - run: npm ci
-      - run: npm run format
-      - run: npm run lint
-      - run: npm run test
-      - run: npm run build
-      - run: npx playwright install --with-deps chromium webkit
-      - run: npm run test:e2e
-      - run: npm run audit
+      - id: format
+        continue-on-error: true
+        run: npm run format
+      - id: lint
+        continue-on-error: true
+        run: npm run lint
+      - id: unit
+        continue-on-error: true
+        run: npm run test
+      - id: build
+        continue-on-error: true
+        run: npm run build
+      - id: browsers
+        continue-on-error: true
+        run: npx playwright install --with-deps chromium webkit
+      - id: e2e
+        continue-on-error: true
+        run: npm run test:e2e
+      - id: audit
+        continue-on-error: true
+        run: npm run audit
+      - id: report
+        if: always()
+        run: |
+          printf '%s\n' \
+            "format ${{ steps.format.outcome }}" \
+            "lint ${{ steps.lint.outcome }}" \
+            "unit ${{ steps.unit.outcome }}" \
+            "build ${{ steps.build.outcome }}" \
+            "browsers ${{ steps.browsers.outcome }}" \
+            "e2e ${{ steps.e2e.outcome }}" \
+            "audit ${{ steps.audit.outcome }}"
+          test "${{ steps.format.outcome }}" = "success" \
+            && test "${{ steps.lint.outcome }}" = "success" \
+            && test "${{ steps.unit.outcome }}" = "success" \
+            && test "${{ steps.build.outcome }}" = "success" \
+            && test "${{ steps.browsers.outcome }}" = "success" \
+            && test "${{ steps.e2e.outcome }}" = "success" \
+            && test "${{ steps.audit.outcome }}" = "success"
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
