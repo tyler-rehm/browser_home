@@ -820,9 +820,6 @@ export function App() {
                           <strong>{link.name}</strong>
                           <small>{host(link.url)}</small>
                         </span>
-                        <span className="arrow" aria-hidden="true">
-                          ↗
-                        </span>
                       </a>
                       <button
                         className="star-link"

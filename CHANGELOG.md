@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Remove the arrow beside the star on each link card.
 - Give group name fields a visible border and matching action buttons.
 - Seed starter links with GitHub, Cursor, Gmail, Sheets, Slack, Lightsail, Cloudflare, and Stripe.
 - Split appearance and general settings into the palette and a gear icon.

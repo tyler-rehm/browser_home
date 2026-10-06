@@ -506,12 +506,6 @@ kbd {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.arrow {
-  flex: 0 0 auto;
-  margin-left: 4px;
-  align-self: flex-start;
-  color: #8c9489;
-}
 .move-link {
   flex: 0 0 30px;
   width: 30px;
