@@ -32,6 +32,16 @@ describe('homepage', () => {
     expect(names[0]).toMatch(/ChatGPT/)
     expect(names[1]).toMatch(/GitHub/)
     expect(JSON.parse(localStorage.getItem(KEYS.links))[0].name).toBe('ChatGPT')
+    expect(screen.getByText('ChatGPT moved before GitHub')).toBeInTheDocument()
+  })
+
+  it('offers a skip link to the main content', () => {
+    render(<App />)
+    expect(screen.getByRole('link', { name: 'Skip to content' })).toHaveAttribute(
+      'href',
+      '#content',
+    )
+    expect(document.getElementById('content')?.tagName).toBe('MAIN')
   })
 
   it('keeps a link icon color when the card moves', async () => {

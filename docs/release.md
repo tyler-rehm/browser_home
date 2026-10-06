@@ -8,11 +8,11 @@ Local implementation can be complete while these gates stay open.
 - [x] New windows use that homepage. Confirmed 2026-10-05 with Command-N.
 - [x] New tabs use that homepage. Confirmed 2026-10-05 with Command-T.
 - [x] Saved links, notes, and appearance survive a browser restart. Confirmed 2026-10-05: scratchpad note was still there.
-- [ ] Keyboard use, zoom, and the dialogs work in shipping Safari.
+- [ ] Keyboard use, zoom, and the dialogs work in shipping Safari. On 2026-10-05 the Code Home window was brought forward, zoomed one step, and returned with Command-0. View → Actual Size was disabled afterward, so that window was back at actual size. Safari would not run page JavaScript from Apple Events, and the page controls were not exposed in the accessibility tree, so the focused control after Tab was not recorded. Dialogs, keyboard reorder, and zoom-equivalent layouts are covered by the Playwright suite.
 - [x] Login startup comes back after reboot. Confirmed 2026-10-05: Safari opened the homepage after a restart.
 - [x] The service restarts after a crash. Confirmed 2026-10-05: the process was stopped and launchd had it listening again within 2 seconds. `/health` returned `ok`.
 - [x] `update` replaces the installed copy. Confirmed 2026-10-05 while shipping link reorder and icons.
-- [ ] Uninstall has not been run. It would remove the login helper that is in daily use.
+- [x] Uninstall removes the login helper and leaves browser data alone. Confirmed 2026-10-05: the launch agent and `~/Library/Application Support/browser-home` were removed, port 4173 stopped answering, and the helper was installed again. `/health` returned `ok` on `127.0.0.1` and `home.localhost`. The uninstall command does not touch Safari storage.
 
 WebKit in Playwright is not that check.
 

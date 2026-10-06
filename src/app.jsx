@@ -19,6 +19,7 @@ export function App() {
   const [notesSaved, setNotesSaved] = useState(!initial.preserveNotes)
   const [searchError, setSearchError] = useState('')
   const [editor, setEditor] = useState(null)
+  const [reorderNote, setReorderNote] = useState('')
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const dragFrom = useRef(null)
@@ -159,8 +160,14 @@ export function App() {
 
   return (
     <>
+      <a className="skip-link" href="#content">
+        Skip to content
+      </a>
       <div className="grain" aria-hidden="true" />
-      <main>
+      <div className="live-region" aria-live="polite">
+        {reorderNote}
+      </div>
+      <main id="content" tabIndex={-1}>
         <header className="topbar">
           <a className="brand" href="./" aria-label="Home">
             <span className="brand-mark">C</span>
@@ -223,7 +230,7 @@ export function App() {
               aria-invalid={searchError ? 'true' : undefined}
               aria-describedby={searchError ? 'search-error' : undefined}
             />
-            <kbd>/</kbd>
+            <kbd aria-hidden="true">/</kbd>
           </form>
           {searchError ? (
             <p id="search-error" role="alert" className="search-error">
@@ -265,7 +272,9 @@ export function App() {
                   const from = dragFrom.current
                   dragFrom.current = null
                   if (from === null || from === index) return
+                  const moved = links[from]
                   changeLinks(reorderLinks(links, from, index))
+                  if (moved) setReorderNote(`${moved.name} moved`)
                 }}
               >
                 <button
@@ -284,6 +293,7 @@ export function App() {
                     dragFrom.current = null
                     event.currentTarget.closest('.link-card')?.classList.remove('is-dragging')
                   }}
+                  aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
                   onKeyDown={(event) => {
                     const delta =
                       event.key === 'ArrowLeft' || event.key === 'ArrowUp'
@@ -296,6 +306,12 @@ export function App() {
                     const to = index + delta
                     if (to < 0 || to >= links.length) return
                     changeLinks(reorderLinks(links, index, to))
+                    const neighbor = links[to]?.name
+                    setReorderNote(
+                      neighbor
+                        ? `${link.name} moved ${delta < 0 ? 'before' : 'after'} ${neighbor}`
+                        : `${link.name} moved`,
+                    )
                   }}
                 >
                   <svg viewBox="0 0 10 16" aria-hidden="true">
@@ -358,7 +374,7 @@ export function App() {
                 <h2>Useful tools</h2>
               </div>
               <span className="status">
-                <i /> ready
+                <i aria-hidden="true" /> ready
               </span>
             </div>
             <div className="tool-list">
@@ -377,7 +393,9 @@ export function App() {
                 <p className="eyebrow">SCRATCHPAD</p>
                 <h2>Keep a thought</h2>
               </div>
-              <span className="save-status">{notesSaved ? 'saved locally' : 'not saved'}</span>
+              <span className="save-status" aria-live="polite">
+                {notesSaved ? 'saved locally' : 'not saved'}
+              </span>
             </div>
             <textarea
               aria-label="Scratchpad"

@@ -75,6 +75,8 @@ function LinkDialogBody({ initial, fallbackColor, onClose, onSave }) {
               autoFocus
               defaultValue={initial?.name ?? ''}
               placeholder="GitHub"
+              aria-invalid={error ? 'true' : undefined}
+              aria-describedby={error ? 'link-form-error' : undefined}
             />
           </label>
           <label>
@@ -86,6 +88,8 @@ function LinkDialogBody({ initial, fallbackColor, onClose, onSave }) {
               inputMode="url"
               defaultValue={initial?.url ?? ''}
               placeholder="https://github.com"
+              aria-invalid={error ? 'true' : undefined}
+              aria-describedby={error ? 'link-form-error' : undefined}
             />
           </label>
           <label>
@@ -108,6 +112,8 @@ function LinkDialogBody({ initial, fallbackColor, onClose, onSave }) {
             />
           </label>
           <div
+            role="group"
+            aria-label="Link icon"
             className={over ? 'icon-drop is-over' : 'icon-drop'}
             onDragOver={(event) => {
               event.preventDefault()
@@ -146,7 +152,7 @@ function LinkDialogBody({ initial, fallbackColor, onClose, onSave }) {
             }}
           />
           {error ? (
-            <p role="alert" className="form-error">
+            <p id="link-form-error" role="alert" className="form-error">
               {error}
             </p>
           ) : null}

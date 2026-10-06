@@ -104,6 +104,10 @@ test('unsafe link and malformed search stay on the page', async ({ page }) => {
   await page.getByRole('button', { name: 'Add link', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Add a link' })
   await expect(dialog.getByRole('alert')).toBeVisible()
+  await expect(dialog.getByLabel('URL', { exact: true })).toHaveAttribute(
+    'aria-describedby',
+    'link-form-error',
+  )
   await expect(dialog.getByLabel('Name', { exact: true })).toHaveValue('Bad')
   await page.keyboard.press('Escape')
   await page.getByLabel('Search the web or type a URL').fill('https://user:pass@example.com')

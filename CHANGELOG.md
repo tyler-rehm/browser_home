@@ -8,5 +8,7 @@
 - Bundle Manrope, DM Mono, and Inter instead of requesting Google Fonts.
 - Add optional macOS login-service commands, CI, and a publication audit.
 - Let quick links be reordered, and store each link’s icon color and optional circular image.
+- Add a skip link, announce reorders and scratchpad saves, and tie link-form errors to the fields.
+- Document install, configuration, Safari, and the login helper in the README.
 
-Shipping Safari keyboard and zoom, and a live uninstall of the login helper, have not been recorded.
+The login helper was uninstalled and installed again on 2026-10-05. That command does not clear browser data. Shipping Safari keyboard focus was not readable from outside Safari.
