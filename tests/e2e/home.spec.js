@@ -67,7 +67,7 @@ test('adds a link and persists it after reload', async ({ page }) => {
 })
 
 test('preferences persist after reload', async ({ page }) => {
-  await page.getByRole('button', { name: /customize/i }).click()
+  await page.getByRole('button', { name: 'Appearance' }).click()
   await page.getByRole('button', { name: 'ink theme' }).click()
   await page.getByRole('button', { name: 'Done' }).click()
   await page.reload()
@@ -224,7 +224,7 @@ test('startup stays local and exposes security headers', async ({ page }) => {
 test('rejected imports and cancelled reset leave data in place', async ({ page }) => {
   await page.getByLabel('Scratchpad').fill('keep me')
   await page.evaluate(() => localStorage.setItem('unrelated', 'keep'))
-  await page.getByRole('button', { name: /customize/i }).click()
+  await page.getByRole('button', { name: 'Settings' }).click()
   await page.getByLabel('Import backup').setInputFiles({
     name: 'backup.json',
     mimeType: 'application/json',

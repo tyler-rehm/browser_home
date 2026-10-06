@@ -7,23 +7,20 @@ import { Dialog, DialogActions, DialogBody, DialogTitle } from './dialog'
 export function PreferencesDialog(props) {
   return (
     <Dialog open={props.open} onClose={props.onClose} size="lg">
-      {props.open ? <PreferencesBody {...props} /> : null}
+      {props.open ? <AppearanceBody {...props} /> : null}
     </Dialog>
   )
 }
 
-function PreferencesBody({ onClose, prefs, onChange, onImport, onExport, onReset }) {
-  const [error, setError] = useState('')
-  const [confirming, setConfirming] = useState(false)
+export function SettingsDialog(props) {
+  return (
+    <Dialog open={props.open} onClose={props.onClose} size="lg">
+      {props.open ? <SettingsBody {...props} /> : null}
+    </Dialog>
+  )
+}
 
-  async function importFile(event) {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    const message = await onImport(file)
-    setError(message)
-  }
-
+function AppearanceBody({ onClose, prefs, onChange }) {
   return (
     <>
       <DialogTitle>Make it yours</DialogTitle>
@@ -82,6 +79,36 @@ function PreferencesBody({ onClose, prefs, onChange, onImport, onExport, onReset
             ))}
           </select>
         </label>
+      </DialogBody>
+      <DialogActions>
+        <Button
+          outline
+          onClick={() => onChange({ ...DEFAULT_PREFERENCES, openInNewTab: prefs.openInNewTab })}
+        >
+          Default appearance
+        </Button>
+        <Button onClick={onClose}>Done</Button>
+      </DialogActions>
+    </>
+  )
+}
+
+function SettingsBody({ onClose, prefs, onChange, onImport, onExport, onReset }) {
+  const [error, setError] = useState('')
+  const [confirming, setConfirming] = useState(false)
+
+  async function importFile(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    const message = await onImport(file)
+    setError(message)
+  }
+
+  return (
+    <>
+      <DialogTitle>Settings</DialogTitle>
+      <DialogBody>
         <label className="preference-toggle">
           <input
             type="checkbox"
@@ -140,12 +167,6 @@ function PreferencesBody({ onClose, prefs, onChange, onImport, onExport, onReset
         ) : null}
       </DialogBody>
       <DialogActions>
-        <Button
-          outline
-          onClick={() => onChange({ ...DEFAULT_PREFERENCES, openInNewTab: prefs.openInNewTab })}
-        >
-          Default appearance
-        </Button>
         <Button
           outline
           onClick={() => setConfirming(true)}

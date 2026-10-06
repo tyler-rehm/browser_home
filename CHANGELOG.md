@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Split appearance and general settings into the palette and a gear icon.
 - Open quick links and tools in a new tab, with a preference to turn that off.
 - Archive links off the main page and restore or delete them from an archive table.
 

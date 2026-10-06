@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { LinkDialog } from './components/add-link-dialog'
 import { Button } from './components/button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from './components/dialog'
-import { PreferencesDialog } from './components/preferences-dialog'
+import { PreferencesDialog, SettingsDialog } from './components/preferences-dialog'
 import { DEFAULT_LINKS, DEFAULT_PREFERENCES, TOOLS } from './data'
 import { ensureContrast, readableForeground } from './color'
 import { downloadText } from './download'
@@ -80,6 +80,7 @@ export function App() {
   const [editor, setEditor] = useState(null)
   const [reorderNote, setReorderNote] = useState('')
   const [prefsOpen, setPrefsOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
   const [view, setView] = useState('all')
   const [page, setPage] = useState(1)
@@ -440,8 +441,19 @@ export function App() {
             </div>
             <button
               className="palette-button"
-              aria-label="Customize colors and fonts"
-              data-tip="Customize"
+              aria-label="Settings"
+              data-tip="Settings"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.6.9 1 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
+              </svg>
+            </button>
+            <button
+              className="palette-button"
+              aria-label="Appearance"
+              data-tip="Appearance"
               onClick={() => setPrefsOpen(true)}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -992,6 +1004,12 @@ export function App() {
       <PreferencesDialog
         open={prefsOpen}
         onClose={() => setPrefsOpen(false)}
+        prefs={prefs}
+        onChange={changePrefs}
+      />
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
         prefs={prefs}
         onChange={changePrefs}
         onImport={importBackup}
