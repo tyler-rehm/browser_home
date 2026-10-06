@@ -36,7 +36,16 @@ const vitest = {
 }
 
 export default [
-  { ignores: ['dist', 'node_modules', 'playwright-report', 'test-results', 'coverage'] },
+  {
+    ignores: [
+      'dist',
+      'node_modules',
+      'playwright-report',
+      'test-results',
+      'coverage',
+      'vibe-probe',
+    ],
+  },
   js.configs.recommended,
   {
     files: ['**/*.{js,jsx}'],

@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "wild": "*",
+    "gitdep": "git+https://example.com/example.git",
+    "ranged": "^1.0.0"
+  }
+}

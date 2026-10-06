@@ -9,4 +9,4 @@ permissions:
   contents: read
 jobs:
   vibe:
-    uses: tyler-rehm/agent-skills/.github/workflows/vibe-check.yml@v1.2
+    uses: tyler-rehm/agent-skills/.github/workflows/vibe-check.yml@vibe-56
