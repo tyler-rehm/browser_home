@@ -92,8 +92,10 @@ test('dialog restores focus after Escape', async ({ page }) => {
 })
 
 test('groups a link, favorites it, filters, and shows the credits', async ({ page }) => {
-  await page.getByLabel('New group').fill('Work')
   await page.getByRole('button', { name: 'Add group' }).click()
+  const groupDialog = page.getByRole('dialog', { name: 'Add a group' })
+  await groupDialog.getByLabel('Name', { exact: true }).fill('Work')
+  await groupDialog.getByRole('button', { name: 'Add group', exact: true }).click()
   await expect(page.getByRole('tab', { name: 'Work' })).toHaveAttribute('aria-selected', 'true')
   await page.getByRole('button', { name: /add link/i }).click()
   const dialog = page.getByRole('dialog', { name: 'Add a link' })
@@ -128,6 +130,10 @@ test('groups a link, favorites it, filters, and shows the credits', async ({ pag
   await expect(footer.getByRole('link', { name: 'GitHub repository' })).toHaveAttribute(
     'href',
     'https://github.com/tyler-rehm/browser_home',
+  )
+  await expect(footer.getByRole('link', { name: 'Sponsor' })).toHaveAttribute(
+    'href',
+    'https://github.com/sponsors/tyler-rehm',
   )
   await expect(footer.getByRole('link', { name: 'Email Tyler Rehm' })).toHaveAttribute(
     'href',
@@ -202,6 +208,10 @@ test('many links, narrow widths, and short viewports stay reachable', async ({ p
     { width: 1280, height: 500 },
   ]) {
     await page.setViewportSize(size)
+    await page
+      .getByRole('button', { name: /to Favorites$/ })
+      .first()
+      .hover()
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     )

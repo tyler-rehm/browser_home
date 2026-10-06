@@ -76,7 +76,7 @@ Each hostname is its own saved-data bucket. Links saved on `home.localhost` do n
 
 The page itself is configured in Safari, not in a config file:
 
-- Quick links: add, edit, remove, archive, and drag. Arrow keys on the grip move a link. Favorites and All are always there. Add your own groups, put a link in one group from the dialog or by dragging it onto a tab, and mark a favorite with the star. All shows every link that is not archived. Archive, beside Add link, lists archived links with the date, Restore, and Delete. A view with more than 8 links is paged. Filter links beside Add link. Each link can keep a color and a circular image. Quick links and tools open in a new tab. Turn that off under Settings. Search still uses this tab.
+- Quick links: add, edit, remove, archive, and drag. Arrow keys on the grip move a link. Favorites and All are always there. Add your own groups with + Group, put a link in one group from the link dialog or by dragging it onto a tab, and mark a favorite with the star. All shows every link that is not archived. Archive, beside Add link, lists archived links with the date, Restore, and Delete. A view with more than 8 links is paged. Filter links beside Add link. Each link can keep a color and a circular image. Quick links and tools open in a new tab. Turn that off under Settings. Search still uses this tab.
 - Scratchpad: notes save as you type.
 - Appearance, the palette icon: themes, colors, and type. Settings, the gear: new-tab behavior, backup import and export, and reset. Backups are JSON on your Mac. See `docs/backups.md`.
 

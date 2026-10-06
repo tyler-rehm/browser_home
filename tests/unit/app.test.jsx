@@ -291,19 +291,26 @@ describe('homepage', () => {
       ]),
     )
     render(<App />)
-    expect(screen.queryByRole('button', { name: 'Delete group' })).not.toBeInTheDocument()
-    await user.type(screen.getByLabelText('New group'), 'Clients')
+    expect(screen.queryByRole('button', { name: 'Edit group' })).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Add group' }))
+    let dialog = screen.getByRole('dialog', { name: 'Add a group' })
+    await user.type(within(dialog).getByLabelText('Name'), 'Clients')
+    await user.click(within(dialog).getByRole('button', { name: 'Add group' }))
     expect(screen.getByRole('tab', { name: 'Clients' })).toHaveAttribute('aria-selected', 'true')
-    await user.clear(screen.getByLabelText('New group'))
-    await user.type(screen.getByLabelText('New group'), 'clients')
     await user.click(screen.getByRole('button', { name: 'Add group' }))
-    expect(screen.getByRole('alert')).toHaveTextContent(/already exists/i)
+    dialog = screen.getByRole('dialog', { name: 'Add a group' })
+    await user.type(within(dialog).getByLabelText('Name'), 'clients')
+    await user.click(within(dialog).getByRole('button', { name: 'Add group' }))
+    expect(within(dialog).getByRole('alert')).toHaveTextContent(/already exists/i)
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     await user.click(screen.getByRole('tab', { name: 'Work' }))
-    await user.clear(screen.getByLabelText('Rename group'))
-    await user.type(screen.getByLabelText('Rename group'), 'Studio')
-    await user.click(screen.getByRole('button', { name: 'Save name' }))
+    await user.click(screen.getByRole('button', { name: 'Edit group' }))
+    dialog = screen.getByRole('dialog', { name: 'Edit group' })
+    await user.clear(within(dialog).getByLabelText('Name'))
+    await user.type(within(dialog).getByLabelText('Name'), 'Studio')
+    await user.click(within(dialog).getByRole('button', { name: 'Save group' }))
     expect(screen.getByRole('tab', { name: 'Studio' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Edit group' }))
     await user.click(screen.getByRole('button', { name: 'Delete group' }))
     await user.click(
       within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete group' }),
@@ -388,6 +395,10 @@ describe('homepage', () => {
     expect(within(footer).getByRole('link', { name: 'GitHub repository' })).toHaveAttribute(
       'href',
       'https://github.com/tyler-rehm/browser_home',
+    )
+    expect(within(footer).getByRole('link', { name: 'Sponsor' })).toHaveAttribute(
+      'href',
+      'https://github.com/sponsors/tyler-rehm',
     )
     expect(within(footer).getByRole('link', { name: 'Email Tyler Rehm' })).toHaveAttribute(
       'href',
