@@ -25,6 +25,19 @@ describe('records', () => {
     ).toBe(false)
     expect(validateNotes('x'.repeat(LIMITS.noteLength + 1)).ok).toBe(false)
     expect(validateLinkList({ nope: true }).ok).toBe(false)
+    expect(validateLink({ name: 'A', url: 'https://example.com', color: 'red' }).ok).toBe(false)
+    expect(
+      validateLink({ name: 'A', url: 'https://example.com', icon: 'data:image/svg+xml,x' }).ok,
+    ).toBe(false)
+    const saved = validateLink({
+      name: 'A',
+      url: 'https://example.com',
+      color: '#ABCDEF',
+      icon: 'data:image/jpeg;base64,aaaa',
+    })
+    expect(saved.ok).toBe(true)
+    expect(saved.value.color).toBe('#abcdef')
+    expect(saved.value.icon).toBe('data:image/jpeg;base64,aaaa')
   })
 
   it('falls back on invalid stored preferences without throwing', () => {

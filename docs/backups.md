@@ -19,7 +19,7 @@ Storage is per origin. Use `http://home.localhost:4173` every time. Data saved o
 }
 ```
 
-Limits are 48 links, 60-character names, 2-character short labels, 2048-character URLs, 8000-character notes, and a 256 KB import. Links are HTTP or HTTPS without embedded usernames or passwords. Fonts must be one of Manrope, Inter, Avenir Next, Helvetica Neue, or Georgia. Colors are `#rrggbb`.
+Limits are 48 links, 60-character names, 2-character short labels, 2048-character URLs, 8000-character notes, and a 768 KB import. Links are HTTP or HTTPS without embedded usernames or passwords. A link may store a `#rrggbb` icon color and a small JPEG icon. Fonts must be one of Manrope, Inter, Avenir Next, Helvetica Neue, or Georgia. Colors are `#rrggbb`.
 
 Unknown fields, an unsupported version, or an invalid value reject the whole file. Nothing already on the page changes.
 

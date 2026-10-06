@@ -4,9 +4,10 @@ export const LIMITS = {
   linkName: 60,
   linkShort: 2,
   linkUrl: 2048,
+  linkIcon: 16_000,
   linkCount: 48,
   noteLength: 8000,
-  importBytes: 256 * 1024,
+  importBytes: 768 * 1024,
 }
 
 export const FONTS = ['Manrope', 'Inter', 'Avenir Next', 'Helvetica Neue', 'Georgia']
@@ -37,6 +38,15 @@ export function normalizeUrl(value) {
   return parsed.href
 }
 
+export function reorderLinks(links, from, to) {
+  if (!Number.isInteger(from) || !Number.isInteger(to)) return links
+  if (from === to || from < 0 || to < 0 || from >= links.length || to >= links.length) return links
+  const next = links.slice()
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
+}
+
 export function host(value) {
   try {
     return new URL(value).hostname.replace(/^www\./, '')
@@ -60,11 +70,26 @@ function shortLabel(value) {
   return value.trim().slice(0, LIMITS.linkShort).toUpperCase()
 }
 
+const LINK_FIELDS = ['name', 'url', 'short', 'color', 'icon']
+
+function linkColor(value) {
+  if (value == null || value === '') return ''
+  if (!isHexColor(value)) return null
+  return value.toLowerCase()
+}
+
+function linkIcon(value) {
+  if (value == null || value === '') return ''
+  if (typeof value !== 'string' || value.length > LIMITS.linkIcon) return null
+  if (!/^data:image\/jpeg;base64,[a-z0-9+/]+={0,2}$/i.test(value)) return null
+  return value
+}
+
 export function validateLink(input, { strictUnknown = false } = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     return { ok: false, error: 'A link record is malformed' }
   }
-  if (strictUnknown && Object.keys(input).some((key) => !['name', 'url', 'short'].includes(key))) {
+  if (strictUnknown && Object.keys(input).some((key) => !LINK_FIELDS.includes(key))) {
     return { ok: false, error: 'A link contains an unknown field' }
   }
   if (typeof input.name !== 'string' || !input.name.trim()) {
@@ -81,7 +106,14 @@ export function validateLink(input, { strictUnknown = false } = {}) {
   }
   const short = shortLabel(input.short)
   if (short == null) return { ok: false, error: 'Short label is malformed' }
-  return { ok: true, value: { name: input.name.trim(), url, short } }
+  const color = linkColor(input.color)
+  if (color == null) return { ok: false, error: 'Icon color must be a hex color' }
+  const icon = linkIcon(input.icon)
+  if (icon == null) return { ok: false, error: 'Icon image must be a small JPEG' }
+  const value = { name: input.name.trim(), url, short }
+  if (color) value.color = color
+  if (icon) value.icon = icon
+  return { ok: true, value }
 }
 
 export function validateLinkList(input, options = {}) {

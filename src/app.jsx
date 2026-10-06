@@ -1,17 +1,13 @@
-import { useEffect, useState } from 'react'
-import { AddLinkDialog } from './components/add-link-dialog'
+import { useEffect, useRef, useState } from 'react'
+import { LinkDialog } from './components/add-link-dialog'
 import { PreferencesDialog } from './components/preferences-dialog'
 import { DEFAULT_LINKS, DEFAULT_PREFERENCES, TOOLS } from './data'
 import { ensureContrast, readableForeground } from './color'
 import { downloadText } from './download'
 import { parseImport, serializeBackup } from './backup'
-import { host, searchDestination, LIMITS } from './records'
+import { host, reorderLinks, searchDestination, LIMITS } from './records'
 import { APP_KEYS, KEYS, removeKeys, writeText } from './persistence'
 import { loadHomepage } from './state'
-
-function fillsFor(prefs, index) {
-  return [prefs.ink, prefs.secondary, prefs.accent, prefs.ink][index % 4]
-}
 
 export function App() {
   const [initial] = useState(() => loadHomepage(localStorage))
@@ -22,9 +18,10 @@ export function App() {
   const [storageError, setStorageError] = useState('')
   const [notesSaved, setNotesSaved] = useState(!initial.preserveNotes)
   const [searchError, setSearchError] = useState('')
-  const [addOpen, setAddOpen] = useState(false)
+  const [editor, setEditor] = useState(null)
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
+  const dragFrom = useRef(null)
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30000)
@@ -83,9 +80,15 @@ export function App() {
     remember(writeText(localStorage, KEYS.preferences, JSON.stringify(next)))
   }
 
-  function addLink(link) {
-    if (links.length >= LIMITS.linkCount) return { ok: false, error: 'There are too many links' }
-    changeLinks([...links, link])
+  function saveLink(link) {
+    if (editor?.index == null) {
+      if (links.length >= LIMITS.linkCount) return { ok: false, error: 'There are too many links' }
+      changeLinks([...links, link])
+      return { ok: true }
+    }
+    const next = links.slice()
+    next[editor.index] = link
+    changeLinks(next)
     return { ok: true }
   }
 
@@ -233,21 +236,87 @@ export function App() {
             <p className="eyebrow">QUICK ACCESS</p>
             <h2>Where to?</h2>
           </div>
-          <button className="text-button" type="button" onClick={() => setAddOpen(true)}>
+          <button
+            className="text-button"
+            type="button"
+            onClick={() => setEditor({ link: null, index: null })}
+          >
             + Add link
           </button>
         </section>
         <section className="link-grid" aria-label="Quick links">
           {links.map((link, index) => {
-            const fill = fillsFor(prefs, index)
+            const fill = link.color || prefs.ink
             return (
-              <div className="link-card" key={`${link.url}-${link.name}`}>
-                <a className="link-open" href={link.url}>
+              <div
+                className="link-card"
+                key={`${link.url}-${link.name}`}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  event.currentTarget.classList.add('is-over')
+                }}
+                onDragLeave={(event) => {
+                  if (event.currentTarget.contains(event.relatedTarget)) return
+                  event.currentTarget.classList.remove('is-over')
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  event.currentTarget.classList.remove('is-over', 'is-dragging')
+                  const from = dragFrom.current
+                  dragFrom.current = null
+                  if (from === null || from === index) return
+                  changeLinks(reorderLinks(links, from, index))
+                }}
+              >
+                <button
+                  className="move-link"
+                  type="button"
+                  draggable
+                  aria-label={`Reorder ${link.name}`}
+                  title="Drag, or press the arrow keys"
+                  onDragStart={(event) => {
+                    dragFrom.current = index
+                    event.dataTransfer.effectAllowed = 'move'
+                    event.dataTransfer.setData('text/plain', String(index))
+                    event.currentTarget.closest('.link-card')?.classList.add('is-dragging')
+                  }}
+                  onDragEnd={(event) => {
+                    dragFrom.current = null
+                    event.currentTarget.closest('.link-card')?.classList.remove('is-dragging')
+                  }}
+                  onKeyDown={(event) => {
+                    const delta =
+                      event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+                        ? -1
+                        : event.key === 'ArrowRight' || event.key === 'ArrowDown'
+                          ? 1
+                          : 0
+                    if (!delta) return
+                    event.preventDefault()
+                    const to = index + delta
+                    if (to < 0 || to >= links.length) return
+                    changeLinks(reorderLinks(links, index, to))
+                  }}
+                >
+                  <svg viewBox="0 0 10 16" aria-hidden="true">
+                    <circle cx="2" cy="2" r="1.2" />
+                    <circle cx="8" cy="2" r="1.2" />
+                    <circle cx="2" cy="8" r="1.2" />
+                    <circle cx="8" cy="8" r="1.2" />
+                    <circle cx="2" cy="14" r="1.2" />
+                    <circle cx="8" cy="14" r="1.2" />
+                  </svg>
+                </button>
+                <a className="link-open" href={link.url} draggable="false">
                   <span
                     className="link-icon"
                     style={{ background: fill, color: readableForeground(fill) }}
                   >
-                    {link.short || link.name.slice(0, 2).toUpperCase()}
+                    {link.icon ? (
+                      <img src={link.icon} alt="" />
+                    ) : (
+                      link.short || link.name.slice(0, 2).toUpperCase()
+                    )}
                   </span>
                   <span className="link-copy">
                     <strong>{link.name}</strong>
@@ -258,8 +327,20 @@ export function App() {
                   </span>
                 </a>
                 <button
+                  className="edit-link"
+                  type="button"
+                  draggable="false"
+                  aria-label={`Edit ${link.name}`}
+                  onClick={() => setEditor({ link, index })}
+                >
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M11.2 1.8 14.2 4.8 5.5 13.5 2 14.2 2.7 10.7 11.2 1.8Z" />
+                  </svg>
+                </button>
+                <button
                   className="remove-link"
                   type="button"
+                  draggable="false"
                   aria-label={`Remove ${link.name}`}
                   onClick={() => changeLinks(links.filter((_, item) => item !== index))}
                 >
@@ -308,7 +389,13 @@ export function App() {
           </article>
         </section>
       </main>
-      <AddLinkDialog open={addOpen} onClose={() => setAddOpen(false)} onAdd={addLink} />
+      <LinkDialog
+        open={editor !== null}
+        onClose={() => setEditor(null)}
+        initial={editor?.link}
+        fallbackColor={prefs.ink}
+        onSave={saveLink}
+      />
       <PreferencesDialog
         open={prefsOpen}
         onClose={() => setPrefsOpen(false)}

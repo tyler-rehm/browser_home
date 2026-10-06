@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it } from 'vitest'
 import { App } from '../../src/app'
@@ -19,6 +19,42 @@ describe('homepage', () => {
     expect(screen.getByText('Example')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Remove Example' }))
     expect(screen.queryByText('Example')).not.toBeInTheDocument()
+  })
+
+  it('moves a quick link with the arrow keys and saves the order', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    screen.getByRole('button', { name: 'Reorder ChatGPT' }).focus()
+    await user.keyboard('{ArrowLeft}')
+    const names = within(screen.getByRole('region', { name: 'Quick links' }))
+      .getAllByRole('link')
+      .map((link) => link.textContent)
+    expect(names[0]).toMatch(/ChatGPT/)
+    expect(names[1]).toMatch(/GitHub/)
+    expect(JSON.parse(localStorage.getItem(KEYS.links))[0].name).toBe('ChatGPT')
+  })
+
+  it('keeps a link icon color when the card moves', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem(
+      KEYS.links,
+      JSON.stringify([
+        { name: 'One', url: 'https://one.example/', short: 'ON', color: '#112233' },
+        { name: 'Two', url: 'https://two.example/', short: 'TW', color: '#445566' },
+      ]),
+    )
+    render(<App />)
+    screen.getByRole('button', { name: 'Reorder Two' }).focus()
+    await user.keyboard('{ArrowLeft}')
+    const two = screen.getByRole('link', { name: /Two/ })
+    expect(two.querySelector('.link-icon').style.backgroundColor).toBe('rgb(68, 85, 102)')
+    await user.click(screen.getByRole('button', { name: 'Edit Two' }))
+    fireEvent.change(screen.getByLabelText('Icon color'), { target: { value: '#abcdef' } })
+    await user.click(screen.getByRole('button', { name: 'Save link' }))
+    expect(JSON.parse(localStorage.getItem(KEYS.links))[0].color).toBe('#abcdef')
+    expect(
+      screen.getByRole('link', { name: /Two/ }).querySelector('.link-icon').style.backgroundColor,
+    ).toBe('rgb(171, 205, 239)')
   })
 
   it('keeps an unsafe link form open and does not navigate from remove', async () => {

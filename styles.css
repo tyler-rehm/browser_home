@@ -239,6 +239,8 @@ kbd {
   text-decoration: none;
 }
 .link-open:focus-visible,
+.move-link:focus-visible,
+.edit-link:focus-visible,
 .remove-link:focus-visible,
 .palette-button:focus-visible,
 .text-button:focus-visible,
@@ -255,13 +257,15 @@ kbd {
   background: var(--ink);
   color: #fff;
   border-radius: 50%;
+  overflow: hidden;
   font: 500 10px DM Mono;
 }
-.link-card:nth-child(4n + 2) .link-icon {
-  background: var(--green);
-}
-.link-card:nth-child(4n + 3) .link-icon {
-  background: var(--orange);
+.link-icon img {
+  width: 38px;
+  height: 38px;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
 }
 .link-copy {
   display: flex;
@@ -287,6 +291,51 @@ kbd {
   margin-left: auto;
   align-self: flex-start;
   color: #8c9489;
+}
+.move-link {
+  flex: 0 0 36px;
+  width: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: grab;
+  padding: 0;
+}
+.move-link svg {
+  width: 10px;
+  height: 16px;
+  fill: currentColor;
+}
+.move-link:active {
+  cursor: grabbing;
+}
+.link-card.is-dragging {
+  opacity: 0.45;
+}
+.link-card.is-over {
+  border-color: var(--ink);
+}
+.edit-link {
+  flex: 0 0 36px;
+  width: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  padding: 0;
+}
+.edit-link svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
 }
 .remove-link {
   flex: 0 0 44px;
@@ -642,6 +691,31 @@ label input:focus {
   textarea {
     margin-top: 10px;
   }
+}
+.icon-drop {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 16px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  text-align: center;
+}
+.icon-drop.is-over {
+  border-color: var(--ink);
+}
+.icon-drop p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.icon-preview {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
 }
 .banner {
   display: flex;

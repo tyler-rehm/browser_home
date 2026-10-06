@@ -24,6 +24,38 @@ test('add-link dialog closes on backdrop click', async ({ page }) => {
   await expect(page.getByRole('dialog')).toBeHidden()
 })
 
+test('drags a quick link into a new order and keeps it', async ({ page }) => {
+  const grid = page.getByRole('region', { name: 'Quick links' })
+  await page
+    .getByRole('button', { name: 'Reorder ChatGPT', exact: true })
+    .dragTo(grid.getByRole('link', { name: /GitHub/ }))
+  await expect(grid.getByRole('link').nth(0)).toContainText('ChatGPT')
+  await page.reload()
+  await expect(grid.getByRole('link').nth(0)).toContainText('ChatGPT')
+})
+
+test('keeps an icon color on the link after it moves', async ({ page }) => {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      'code-home-links',
+      JSON.stringify([
+        { name: 'One', url: 'https://one.example/', short: 'ON', color: '#112233' },
+        { name: 'Two', url: 'https://two.example/', short: 'TW', color: '#445566' },
+      ]),
+    )
+  })
+  await page.reload()
+  const grid = page.getByRole('region', { name: 'Quick links' })
+  await page
+    .getByRole('button', { name: 'Reorder Two', exact: true })
+    .dragTo(grid.getByRole('link', { name: /One/ }))
+  await expect(grid.getByRole('link').nth(0)).toContainText('Two')
+  await expect(grid.getByRole('link', { name: /Two/ }).locator('.link-icon')).toHaveCSS(
+    'background-color',
+    'rgb(68, 85, 102)',
+  )
+})
+
 test('adds a link and persists it after reload', async ({ page }) => {
   await page.getByRole('button', { name: /add link/i }).click()
   await page.getByLabel('Name', { exact: true }).fill('Example')
