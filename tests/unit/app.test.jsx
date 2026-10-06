@@ -7,7 +7,38 @@ import { KEYS } from '../../src/persistence'
 
 afterEach(() => {
   document.documentElement.removeAttribute('style')
+  document.body.classList.remove('is-link-drag')
 })
+
+function box(element, x, y, width = 120, height = 44) {
+  element.getBoundingClientRect = () => ({
+    x,
+    y,
+    left: x,
+    top: y,
+    width,
+    height,
+    right: x + width,
+    bottom: y + height,
+    toJSON() {
+      return {}
+    },
+  })
+}
+
+function dragGripTo(grip, target) {
+  document.querySelectorAll('.link-tab, .link-card').forEach((element, index) => {
+    box(element, index * 200, 400)
+  })
+  box(grip.closest('.link-card'), 0, 240, 220, 80)
+  box(grip, 0, 240, 30, 80)
+  box(target, 400, 0, 140, 44)
+  const base = { pointerId: 1, button: 0, isPrimary: true, pointerType: 'mouse' }
+  fireEvent.pointerDown(grip, { ...base, clientX: 10, clientY: 250 })
+  fireEvent.pointerMove(document, { ...base, clientX: 26, clientY: 266 })
+  fireEvent.pointerMove(document, { ...base, clientX: 470, clientY: 22 })
+  fireEvent.pointerUp(document, { ...base, clientX: 470, clientY: 22 })
+}
 
 describe('homepage', () => {
   it('adds and removes a quick link', async () => {
@@ -302,18 +333,15 @@ describe('homepage', () => {
     )
     render(<App />)
     const grip = () => screen.getByRole('button', { name: 'Reorder Example' })
-    fireEvent.dragStart(grip())
-    fireEvent.drop(screen.getByRole('tab', { name: 'Work' }))
+    dragGripTo(grip(), screen.getByRole('tab', { name: 'Work' }))
     expect(JSON.parse(localStorage.getItem(KEYS.links))[0].groupId).toBe('work')
     expect(screen.getByText('Example moved to Work')).toBeInTheDocument()
-    fireEvent.dragStart(grip())
-    fireEvent.drop(screen.getByRole('tab', { name: 'Favorites' }))
+    dragGripTo(grip(), screen.getByRole('tab', { name: 'Favorites' }))
     expect(JSON.parse(localStorage.getItem(KEYS.links))[0]).toMatchObject({
       groupId: 'work',
       favorite: true,
     })
-    fireEvent.dragStart(grip())
-    fireEvent.drop(screen.getByRole('tab', { name: 'All' }))
+    dragGripTo(grip(), screen.getByRole('tab', { name: 'All' }))
     const cleared = JSON.parse(localStorage.getItem(KEYS.links))[0]
     expect(cleared.groupId).toBeUndefined()
     expect(cleared.favorite).toBe(true)

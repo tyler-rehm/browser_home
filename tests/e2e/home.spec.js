@@ -28,7 +28,7 @@ test('drags a quick link into a new order and keeps it', async ({ page }) => {
   const grid = page.getByRole('region', { name: 'Quick links' })
   await page
     .getByRole('button', { name: 'Reorder Cursor', exact: true })
-    .dragTo(grid.getByRole('link', { name: /GitHub/ }))
+    .dragTo(grid.getByRole('link', { name: /GitHub/ }), { steps: 12 })
   await expect(grid.getByRole('link').nth(0)).toContainText('Cursor')
   await page.reload()
   await expect(grid.getByRole('link').nth(0)).toContainText('Cursor')
@@ -48,7 +48,7 @@ test('keeps an icon color on the link after it moves', async ({ page }) => {
   const grid = page.getByRole('region', { name: 'Quick links' })
   await page
     .getByRole('button', { name: 'Reorder Two', exact: true })
-    .dragTo(grid.getByRole('link', { name: /One/ }))
+    .dragTo(grid.getByRole('link', { name: /One/ }), { steps: 12 })
   await expect(grid.getByRole('link').nth(0)).toContainText('Two')
   await expect(grid.getByRole('link', { name: /Two/ }).locator('.link-icon')).toHaveCSS(
     'background-color',

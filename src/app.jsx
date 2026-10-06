@@ -1,10 +1,21 @@
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  pointerWithin,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { useEffect, useRef, useState } from 'react'
 import { LinkDialog } from './components/add-link-dialog'
 import { Button } from './components/button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from './components/dialog'
 import { PreferencesDialog, SettingsDialog } from './components/preferences-dialog'
+import { DroppableTab, QuickLinkOverlay, SortableQuickLink } from './components/quick-link-card'
 import { DEFAULT_LINKS, DEFAULT_PREFERENCES, TOOLS } from './data'
-import { ensureContrast, readableForeground } from './color'
+import { ensureContrast } from './color'
 import { downloadText } from './download'
 import { parseImport, serializeBackup } from './backup'
 import {
@@ -30,14 +41,6 @@ function stripGroup(link) {
   return next
 }
 
-function draggedId(event) {
-  try {
-    return event.dataTransfer?.getData('text/plain') || ''
-  } catch {
-    return ''
-  }
-}
-
 function outboundLinkProps(openInNewTab) {
   if (!openInNewTab) return {}
   return { target: '_blank', rel: 'noopener noreferrer' }
@@ -53,18 +56,29 @@ function archiveLabel(value) {
   }).format(date)
 }
 
-function StarIcon({ filled }) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="m12 2.8 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.2 6.8 19l1-5.9-4.3-4.1 5.9-.8L12 2.8Z"
-        fill={filled ? 'currentColor' : 'none'}
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
+function preferTabCollision(args) {
+  const tabs = pointerWithin(args).filter((hit) => String(hit.id).startsWith('tab:'))
+  if (tabs.length > 0) return tabs
+  return closestCenter(args)
+}
+
+const dragInstructions = {
+  draggable: 'Drag the grip to move a link. Arrow keys on the grip also change its order.',
+}
+
+const dragAnnouncements = {
+  onDragStart() {
+    return undefined
+  },
+  onDragOver() {
+    return undefined
+  },
+  onDragEnd() {
+    return undefined
+  },
+  onDragCancel() {
+    return undefined
+  },
 }
 
 export function App() {
@@ -91,7 +105,8 @@ export function App() {
   const [renameDraft, setRenameDraft] = useState('')
   const [pendingDelete, setPendingDelete] = useState(null)
   const [archiveOpen, setArchiveOpen] = useState(false)
-  const dragId = useRef(null)
+  const [draggedId, setDraggedId] = useState(null)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }))
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30000)
@@ -108,7 +123,13 @@ export function App() {
     style.setProperty('--display-font', `'${prefs.font}', sans-serif`)
   }, [prefs])
 
-  useEffect(() => () => clearTimeout(saveTimer.current), [])
+  useEffect(
+    () => () => {
+      clearTimeout(saveTimer.current)
+      document.body.classList.remove('is-link-drag')
+    },
+    [],
+  )
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -241,8 +262,7 @@ export function App() {
     )
   }
 
-  function assignDropped(target) {
-    const id = dragId.current
+  function assignDropped(id, target) {
     if (!id) return
     const current = links.find((link) => link.id === id)
     if (!current) return
@@ -261,17 +281,27 @@ export function App() {
     setReorderNote(`${current.name} moved to ${group?.name ?? 'a group'}`)
   }
 
-  function onTabDragOver(event) {
-    event.preventDefault()
-    event.currentTarget.classList.add('is-over')
+  function onDragStart(event) {
+    document.body.classList.add('is-link-drag')
+    setDraggedId(String(event.active.id))
   }
 
-  function onTabDrop(event, target) {
-    event.preventDefault()
-    event.currentTarget.classList.remove('is-over')
-    if (!dragId.current) dragId.current = draggedId(event)
-    assignDropped(target)
-    dragId.current = null
+  function onDragCancel() {
+    document.body.classList.remove('is-link-drag')
+    setDraggedId(null)
+  }
+
+  function onDragEnd(event) {
+    document.body.classList.remove('is-link-drag')
+    setDraggedId(null)
+    const { active, over } = event
+    if (!over) return
+    const overId = String(over.id)
+    if (overId.startsWith('tab:')) {
+      assignDropped(String(active.id), overId.slice(4))
+      return
+    }
+    moveLink(String(active.id), overId)
   }
 
   function onTabsKeyDown(event) {
@@ -408,6 +438,7 @@ export function App() {
     : linksInView(shownLinks, groups, view)
   const linkTarget = outboundLinkProps(prefs.openInNewTab)
   const paged = pageOf(viewLinks, page)
+  const draggedLink = links.find((link) => link.id === draggedId) || null
   const activeTabId = filtering ? 'tab-results' : `tab-${view}`
   const emptyCopy = filtering
     ? 'No matching links'
@@ -561,236 +592,218 @@ export function App() {
           </div>
         </section>
         <section className="quick-links" aria-label="Quick links">
-          {archiveOpen ? (
-            <div className="archive-panel">
-              {archived.length === 0 ? (
-                <p className="empty-links">No archived links</p>
-              ) : (
-                <table className="archive-table">
-                  <caption>Archived links</caption>
-                  <thead>
-                    <tr>
-                      <th scope="col">Link</th>
-                      <th scope="col">Archived</th>
-                      <th scope="col">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {archived.map((link) => (
-                      <tr key={link.id}>
-                        <td>
-                          <a href={link.url} {...linkTarget}>
-                            {link.name}
-                          </a>
-                          <small>{host(link.url)}</small>
-                        </td>
-                        <td>
-                          <time dateTime={link.archivedAt}>{archiveLabel(link.archivedAt)}</time>
-                        </td>
-                        <td className="archive-actions">
-                          <button
-                            className="text-button"
-                            type="button"
-                            aria-label={`Restore ${link.name}`}
-                            onClick={() => {
-                              changeLinks(
-                                links.map((item) => {
-                                  if (item.id !== link.id) return item
-                                  const restored = { ...item }
-                                  delete restored.archivedAt
-                                  return restored
-                                }),
-                              )
-                              setReorderNote(`${link.name} restored`)
-                            }}
-                          >
-                            Restore
-                          </button>
-                          <button
-                            className="text-button"
-                            type="button"
-                            aria-label={`Delete ${link.name}`}
-                            onClick={() => {
-                              changeLinks(links.filter((item) => item.id !== link.id))
-                              setReorderNote(`${link.name} deleted`)
-                            }}
-                          >
-                            Delete
-                          </button>
-                        </td>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={preferTabCollision}
+            autoScroll={false}
+            screenReaderInstructions={dragInstructions}
+            announcements={dragAnnouncements}
+            onDragStart={onDragStart}
+            onDragCancel={onDragCancel}
+            onDragEnd={onDragEnd}
+          >
+            {archiveOpen ? (
+              <div className="archive-panel">
+                {archived.length === 0 ? (
+                  <p className="empty-links">No archived links</p>
+                ) : (
+                  <table className="archive-table">
+                    <caption>Archived links</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Link</th>
+                        <th scope="col">Archived</th>
+                        <th scope="col">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          ) : null}
-          {archiveOpen ? null : (
-            <>
-              <div className="link-toolbar">
-                <div
-                  className="link-tabs"
-                  role="tablist"
-                  aria-label="Link groups"
-                  onKeyDown={filtering ? undefined : onTabsKeyDown}
-                >
-                  {filtering ? (
-                    <button
-                      id="tab-results"
-                      className="link-tab"
-                      role="tab"
-                      type="button"
-                      aria-selected="true"
-                      aria-controls="link-panel"
-                    >
-                      Results
-                    </button>
-                  ) : (
-                    <>
-                      {[
-                        ['favorites', 'Favorites'],
-                        ['all', 'All'],
-                      ].map(([id, label]) => (
-                        <button
-                          key={id}
-                          id={`tab-${id}`}
-                          className="link-tab"
-                          role="tab"
-                          type="button"
-                          aria-selected={view === id}
-                          aria-controls="link-panel"
-                          tabIndex={view === id ? 0 : -1}
-                          onClick={() => selectView(id)}
-                          onDragOver={onTabDragOver}
-                          onDragLeave={(event) => event.currentTarget.classList.remove('is-over')}
-                          onDrop={(event) => onTabDrop(event, id)}
-                        >
-                          {label}
-                        </button>
+                    </thead>
+                    <tbody>
+                      {archived.map((link) => (
+                        <tr key={link.id}>
+                          <td>
+                            <a href={link.url} {...linkTarget}>
+                              {link.name}
+                            </a>
+                            <small>{host(link.url)}</small>
+                          </td>
+                          <td>
+                            <time dateTime={link.archivedAt}>{archiveLabel(link.archivedAt)}</time>
+                          </td>
+                          <td className="archive-actions">
+                            <button
+                              className="text-button"
+                              type="button"
+                              aria-label={`Restore ${link.name}`}
+                              onClick={() => {
+                                changeLinks(
+                                  links.map((item) => {
+                                    if (item.id !== link.id) return item
+                                    const restored = { ...item }
+                                    delete restored.archivedAt
+                                    return restored
+                                  }),
+                                )
+                                setReorderNote(`${link.name} restored`)
+                              }}
+                            >
+                              Restore
+                            </button>
+                            <button
+                              className="text-button"
+                              type="button"
+                              aria-label={`Delete ${link.name}`}
+                              onClick={() => {
+                                changeLinks(links.filter((item) => item.id !== link.id))
+                                setReorderNote(`${link.name} deleted`)
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
                       ))}
-                      {groups.map((group) => (
-                        <button
-                          key={group.id}
-                          id={`tab-${group.id}`}
-                          className="link-tab"
-                          role="tab"
-                          type="button"
-                          aria-selected={view === group.id}
-                          aria-controls="link-panel"
-                          tabIndex={view === group.id ? 0 : -1}
-                          onClick={() => selectView(group.id)}
-                          onDragOver={onTabDragOver}
-                          onDragLeave={(event) => event.currentTarget.classList.remove('is-over')}
-                          onDrop={(event) => onTabDrop(event, group.id)}
-                        >
-                          {group.name}
-                        </button>
-                      ))}
-                    </>
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            ) : null}
+            {archiveOpen ? null : (
+              <>
+                <div className="link-toolbar">
+                  <div
+                    className="link-tabs"
+                    role="tablist"
+                    aria-label="Link groups"
+                    onKeyDown={filtering ? undefined : onTabsKeyDown}
+                  >
+                    {filtering ? (
+                      <button
+                        id="tab-results"
+                        className="link-tab"
+                        role="tab"
+                        type="button"
+                        aria-selected="true"
+                        aria-controls="link-panel"
+                      >
+                        Results
+                      </button>
+                    ) : (
+                      <>
+                        {[
+                          ['favorites', 'Favorites'],
+                          ['all', 'All'],
+                        ].map(([id, label]) => (
+                          <DroppableTab
+                            key={id}
+                            id={id}
+                            label={label}
+                            selected={view === id}
+                            onSelect={() => selectView(id)}
+                          />
+                        ))}
+                        {groups.map((group) => (
+                          <DroppableTab
+                            key={group.id}
+                            id={group.id}
+                            label={group.name}
+                            selected={view === group.id}
+                            onSelect={() => selectView(group.id)}
+                          />
+                        ))}
+                      </>
+                    )}
+                  </div>
+                  {filtering ? null : (
+                    <form className="new-group" onSubmit={submitNewGroup}>
+                      <label htmlFor="new-group">New group</label>
+                      <input
+                        id="new-group"
+                        name="name"
+                        maxLength={LIMITS.groupName}
+                        autoComplete="off"
+                        placeholder="Work"
+                        value={newGroupName}
+                        onChange={(event) => setNewGroupName(event.target.value)}
+                      />
+                      <button className="text-button" type="submit">
+                        Add group
+                      </button>
+                    </form>
                   )}
                 </div>
-                {filtering ? null : (
-                  <form className="new-group" onSubmit={submitNewGroup}>
-                    <label htmlFor="new-group">New group</label>
+                {filtering || !selectedGroup ? null : (
+                  <form className="rename-group" onSubmit={submitRename}>
+                    <label htmlFor="rename-group">Rename group</label>
                     <input
-                      id="new-group"
-                      name="name"
+                      id="rename-group"
+                      value={renameDraft}
                       maxLength={LIMITS.groupName}
                       autoComplete="off"
-                      placeholder="Work"
-                      value={newGroupName}
-                      onChange={(event) => setNewGroupName(event.target.value)}
+                      onChange={(event) => setRenameDraft(event.target.value)}
                     />
                     <button className="text-button" type="submit">
-                      Add group
+                      Save name
+                    </button>
+                    <button
+                      className="text-button"
+                      type="button"
+                      onClick={() => setPendingDelete(selectedGroup)}
+                    >
+                      Delete group
                     </button>
                   </form>
                 )}
-              </div>
-              {filtering || !selectedGroup ? null : (
-                <form className="rename-group" onSubmit={submitRename}>
-                  <label htmlFor="rename-group">Rename group</label>
-                  <input
-                    id="rename-group"
-                    value={renameDraft}
-                    maxLength={LIMITS.groupName}
-                    autoComplete="off"
-                    onChange={(event) => setRenameDraft(event.target.value)}
-                  />
-                  <button className="text-button" type="submit">
-                    Save name
-                  </button>
-                  <button
-                    className="text-button"
-                    type="button"
-                    onClick={() => setPendingDelete(selectedGroup)}
+                {groupError ? (
+                  <p role="alert" className="form-error">
+                    {groupError}
+                  </p>
+                ) : null}
+                <div className="live-region" aria-live="polite">
+                  {filtering
+                    ? `${viewLinks.length} ${viewLinks.length === 1 ? 'result' : 'results'}`
+                    : ''}
+                </div>
+                <div
+                  id="link-panel"
+                  role="tabpanel"
+                  aria-labelledby={activeTabId}
+                  className="link-grid"
+                >
+                  {paged.total === 0 ? <p className="empty-links">{emptyCopy}</p> : null}
+                  <SortableContext
+                    items={paged.items.map((link) => link.id)}
+                    strategy={rectSortingStrategy}
                   >
-                    Delete group
-                  </button>
-                </form>
-              )}
-              {groupError ? (
-                <p role="alert" className="form-error">
-                  {groupError}
-                </p>
-              ) : null}
-              <div className="live-region" aria-live="polite">
-                {filtering
-                  ? `${viewLinks.length} ${viewLinks.length === 1 ? 'result' : 'results'}`
-                  : ''}
-              </div>
-              <div
-                id="link-panel"
-                role="tabpanel"
-                aria-labelledby={activeTabId}
-                className="link-grid"
-              >
-                {paged.total === 0 ? <p className="empty-links">{emptyCopy}</p> : null}
-                {paged.items.map((link) => {
-                  const fill = link.color || prefs.ink
-                  const favoriteLabel = link.favorite
-                    ? `Remove ${link.name} from Favorites`
-                    : `Add ${link.name} to Favorites`
-                  return (
-                    <div
-                      className="link-card"
-                      key={link.id}
-                      onDragOver={(event) => {
-                        event.preventDefault()
-                        event.currentTarget.classList.add('is-over')
-                      }}
-                      onDragLeave={(event) => {
-                        if (event.currentTarget.contains(event.relatedTarget)) return
-                        event.currentTarget.classList.remove('is-over')
-                      }}
-                      onDrop={(event) => {
-                        event.preventDefault()
-                        event.currentTarget.classList.remove('is-over', 'is-dragging')
-                        const fromId = dragId.current || draggedId(event)
-                        dragId.current = null
-                        moveLink(fromId, link.id)
-                      }}
-                    >
-                      <button
-                        className="move-link"
-                        type="button"
-                        draggable
-                        aria-label={`Reorder ${link.name}`}
-                        data-tip="Drag, or press the arrow keys"
-                        onDragStart={(event) => {
-                          dragId.current = link.id
-                          if (event.dataTransfer) {
-                            event.dataTransfer.effectAllowed = 'move'
-                            event.dataTransfer.setData('text/plain', link.id)
-                          }
-                          event.currentTarget.closest('.link-card')?.classList.add('is-dragging')
+                    {paged.items.map((link) => (
+                      <SortableQuickLink
+                        key={link.id}
+                        link={link}
+                        fill={link.color || prefs.ink}
+                        linkTarget={linkTarget}
+                        onFavorite={() =>
+                          changeLinks(
+                            links.map((item) =>
+                              item.id === link.id ? { ...item, favorite: !item.favorite } : item,
+                            ),
+                          )
+                        }
+                        onEdit={() =>
+                          setEditor({
+                            link,
+                            index: links.findIndex((item) => item.id === link.id),
+                          })
+                        }
+                        onArchive={() => {
+                          changeLinks(
+                            links.map((item) =>
+                              item.id === link.id
+                                ? { ...item, archivedAt: new Date().toISOString() }
+                                : item,
+                            ),
+                          )
+                          setReorderNote(`${link.name} archived`)
                         }}
-                        onDragEnd={(event) => {
-                          dragId.current = null
-                          event.currentTarget.closest('.link-card')?.classList.remove('is-dragging')
-                        }}
-                        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
-                        onKeyDown={(event) => {
+                        onRemove={() => changeLinks(links.filter((item) => item.id !== link.id))}
+                        onMoveKey={(event) => {
                           const delta =
                             event.key === 'ArrowLeft' || event.key === 'ArrowUp'
                               ? -1
@@ -804,127 +817,45 @@ export function App() {
                           if (toVisible < 0 || toVisible >= paged.items.length) return
                           moveLink(link.id, paged.items[toVisible].id)
                         }}
-                      >
-                        <svg viewBox="0 0 10 16" aria-hidden="true">
-                          <circle cx="2" cy="2" r="1.2" />
-                          <circle cx="8" cy="2" r="1.2" />
-                          <circle cx="2" cy="8" r="1.2" />
-                          <circle cx="8" cy="8" r="1.2" />
-                          <circle cx="2" cy="14" r="1.2" />
-                          <circle cx="8" cy="14" r="1.2" />
-                        </svg>
-                      </button>
-                      <a className="link-open" href={link.url} draggable="false" {...linkTarget}>
-                        <span
-                          className="link-icon"
-                          style={{ background: fill, color: readableForeground(fill) }}
-                        >
-                          {link.icon ? (
-                            <img src={link.icon} alt="" />
-                          ) : (
-                            link.short || link.name.slice(0, 2).toUpperCase()
-                          )}
-                        </span>
-                        <span className="link-copy">
-                          <strong>{link.name}</strong>
-                          <small>{host(link.url)}</small>
-                        </span>
-                      </a>
-                      <button
-                        className="star-link"
-                        type="button"
-                        draggable="false"
-                        aria-pressed={link.favorite}
-                        aria-label={favoriteLabel}
-                        data-tip={favoriteLabel}
-                        onClick={() =>
-                          changeLinks(
-                            links.map((item) =>
-                              item.id === link.id ? { ...item, favorite: !item.favorite } : item,
-                            ),
-                          )
-                        }
-                      >
-                        <StarIcon filled={link.favorite} />
-                      </button>
-                      <button
-                        className="edit-link"
-                        type="button"
-                        draggable="false"
-                        aria-label={`Edit ${link.name}`}
-                        data-tip={`Edit ${link.name}`}
-                        onClick={() =>
-                          setEditor({
-                            link,
-                            index: links.findIndex((item) => item.id === link.id),
-                          })
-                        }
-                      >
-                        <svg viewBox="0 0 16 16" aria-hidden="true">
-                          <path d="M11.2 1.8 14.2 4.8 5.5 13.5 2 14.2 2.7 10.7 11.2 1.8Z" />
-                        </svg>
-                      </button>
-                      <button
-                        className="archive-link"
-                        type="button"
-                        draggable="false"
-                        aria-label={`Archive ${link.name}`}
-                        data-tip={`Archive ${link.name}`}
-                        onClick={() => {
-                          changeLinks(
-                            links.map((item) =>
-                              item.id === link.id
-                                ? { ...item, archivedAt: new Date().toISOString() }
-                                : item,
-                            ),
-                          )
-                          setReorderNote(`${link.name} archived`)
-                        }}
-                      >
-                        <svg viewBox="0 0 16 16" aria-hidden="true">
-                          <path d="M2 3h12v2H2z" />
-                          <path d="M3 6h10v7H3z" />
-                        </svg>
-                      </button>
-                      <button
-                        className="remove-link"
-                        type="button"
-                        draggable="false"
-                        aria-label={`Remove ${link.name}`}
-                        data-tip={`Remove ${link.name}`}
-                        onClick={() => changeLinks(links.filter((item) => item.id !== link.id))}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  )
-                })}
-              </div>
-              {viewLinks.length > LIMITS.pageSize ? (
-                <nav className="pager" aria-label="Pagination">
-                  <button
-                    className="text-button"
-                    type="button"
-                    onClick={() => setPage(paged.page - 1)}
-                    disabled={paged.page <= 1}
-                  >
-                    Previous page
-                  </button>
-                  <span aria-live="polite">
-                    Page {paged.page} of {paged.pages}
-                  </span>
-                  <button
-                    className="text-button"
-                    type="button"
-                    onClick={() => setPage(paged.page + 1)}
-                    disabled={paged.page >= paged.pages}
-                  >
-                    Next page
-                  </button>
-                </nav>
+                      />
+                    ))}
+                  </SortableContext>
+                </div>
+                {viewLinks.length > LIMITS.pageSize ? (
+                  <nav className="pager" aria-label="Pagination">
+                    <button
+                      className="text-button"
+                      type="button"
+                      onClick={() => setPage(paged.page - 1)}
+                      disabled={paged.page <= 1}
+                    >
+                      Previous page
+                    </button>
+                    <span aria-live="polite">
+                      Page {paged.page} of {paged.pages}
+                    </span>
+                    <button
+                      className="text-button"
+                      type="button"
+                      onClick={() => setPage(paged.page + 1)}
+                      disabled={paged.page >= paged.pages}
+                    >
+                      Next page
+                    </button>
+                  </nav>
+                ) : null}
+              </>
+            )}
+            <DragOverlay>
+              {draggedLink ? (
+                <QuickLinkOverlay
+                  link={draggedLink}
+                  fill={draggedLink.color || prefs.ink}
+                  linkTarget={linkTarget}
+                />
               ) : null}
-            </>
-          )}
+            </DragOverlay>
+          </DndContext>
         </section>
         <section className="lower-grid">
           <article className="panel commands-panel">

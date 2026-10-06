@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Drag a quick link and keep the card under the pointer.
 - Line up Import backup and Export backup in Settings.
 - Show the scratchpad save for a moment, then hide it.
 - Remove the static ready mark from Useful tools.

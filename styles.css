@@ -517,6 +517,7 @@ kbd {
   color: var(--muted);
   cursor: grab;
   padding: 0;
+  touch-action: none;
 }
 .move-link svg {
   width: 10px;
@@ -526,11 +527,22 @@ kbd {
 .move-link:active {
   cursor: grabbing;
 }
-.link-card.is-dragging {
-  opacity: 0.45;
+.link-card.is-dragging,
+.link-card.is-dragging:hover {
+  opacity: 0;
 }
-.link-card.is-over {
-  border-color: var(--ink);
+.link-card.is-overlay,
+.link-card.is-overlay:hover {
+  width: 100%;
+  height: 100%;
+  opacity: 1;
+  transform: none;
+  border-color: var(--line);
+  box-shadow: var(--shadow);
+}
+body.is-link-drag,
+body.is-link-drag * {
+  cursor: grabbing !important;
 }
 .edit-link {
   flex: 0 0 30px;
@@ -786,7 +798,10 @@ dialog::backdrop {
   border: 0;
   background: transparent;
   color: var(--ink);
-  font: 12px/1 DM Mono, ui-monospace, monospace;
+  font:
+    12px/1 DM Mono,
+    ui-monospace,
+    monospace;
   letter-spacing: 0;
   text-transform: none;
   text-decoration: underline;
