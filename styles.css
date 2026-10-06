@@ -671,19 +671,9 @@ kbd {
 .commands-panel .panel-heading {
   flex: 0 0 auto;
 }
-.status,
 .save-status {
   color: var(--muted);
   font: 10px DM Mono;
-}
-.status i {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 7px;
-  border-radius: 50%;
-  background: #6c9b75;
-  box-shadow: 0 0 0 4px rgba(108, 155, 117, 0.12);
 }
 .tool-list {
   flex: 1 1 auto;

@@ -924,9 +924,6 @@ export function App() {
                 <p className="eyebrow">LAUNCH PAD</p>
                 <h2>Useful tools</h2>
               </div>
-              <span className="status">
-                <i aria-hidden="true" /> ready
-              </span>
             </div>
             <div className="tool-list">
               {TOOLS.map((tool, index) => (
