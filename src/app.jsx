@@ -442,7 +442,7 @@ export function App() {
           </a>
           <div className="top-actions">
             <div className="date-wrap">
-              <span>
+              <span className="date-day">
                 {new Intl.DateTimeFormat('en-US', {
                   weekday: 'short',
                   month: 'short',

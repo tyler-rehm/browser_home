@@ -208,6 +208,10 @@ test('many links, narrow widths, and short viewports stay reachable', async ({ p
     { width: 1280, height: 500 },
   ]) {
     await page.setViewportSize(size)
+    await page
+      .getByRole('button', { name: /to Favorites$/ })
+      .first()
+      .hover()
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
     )
