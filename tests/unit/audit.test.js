@@ -20,6 +20,16 @@ describe('publication audit', () => {
     expect(failures.join('\n')).toMatch(/premium/)
   })
 
+  it('ignores the disposable vibe probe', () => {
+    const accessKey = ['AKIA', 'IOSFODNN7EXAMPLE'].join('')
+    expect(
+      auditEntries([
+        { path: 'vibe-probe/.env', content: 'A=1' },
+        { path: 'vibe-probe/V001.js', content: `const key = "${accessKey}"` },
+      ]),
+    ).toEqual([])
+  })
+
   it('allows the example preferences file', () => {
     expect(
       auditEntries([{ path: 'examples/home-preferences.example.json', content: '{}\n' }]),

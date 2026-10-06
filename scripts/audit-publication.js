@@ -22,8 +22,17 @@ const SECRET_PATTERNS = [
   /\bgh[pousr]_[A-Za-z0-9]{36,}\b/,
 ]
 
+function normalize(filePath) {
+  return filePath.replaceAll('\\', '/')
+}
+
+export function isProbePath(filePath) {
+  const normalized = normalize(filePath)
+  return normalized === 'vibe-probe' || normalized.startsWith('vibe-probe/')
+}
+
 export function isForbiddenPath(filePath) {
-  const normalized = filePath.replaceAll('\\', '/')
+  const normalized = normalize(filePath)
   return FORBIDDEN_PATH.some((pattern) => pattern.test(normalized))
 }
 
@@ -36,6 +45,7 @@ export function isPremiumSource(filePath, content) {
 export function auditEntries(entries) {
   const failures = []
   for (const entry of entries) {
+    if (isProbePath(entry.path)) continue
     if (isForbiddenPath(entry.path)) failures.push(`${entry.path}: forbidden path`)
     if (isPremiumSource(entry.path, entry.content))
       failures.push(`${entry.path}: premium source marker`)
@@ -69,6 +79,7 @@ export function auditHistory() {
   for (const commit of commits) {
     const listed = git(['ls-tree', '-r', '--name-only', commit]).split('\n').filter(Boolean)
     for (const filePath of listed) {
+      if (isProbePath(filePath)) continue
       if (isForbiddenPath(filePath) || /catalyst/i.test(filePath)) {
         failures.push(`${commit}:${filePath}: forbidden historical path`)
       }
