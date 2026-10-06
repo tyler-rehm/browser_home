@@ -672,8 +672,23 @@ kbd {
   flex: 0 0 auto;
 }
 .save-status {
+  min-width: 7.5rem;
   color: var(--muted);
   font: 10px DM Mono;
+  text-align: right;
+}
+.save-status.is-saved {
+  color: var(--ink);
+  animation: save-flash 1.6s ease;
+}
+@keyframes save-flash {
+  0%,
+  25% {
+    color: var(--ink);
+  }
+  100% {
+    color: var(--muted);
+  }
 }
 .tool-list {
   flex: 1 1 auto;

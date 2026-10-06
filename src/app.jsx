@@ -75,7 +75,8 @@ export function App() {
   const [prefs, setPrefs] = useState(initial.preferences)
   const [recovery, setRecovery] = useState(initial.recovery)
   const [storageError, setStorageError] = useState('')
-  const [notesSaved, setNotesSaved] = useState(!initial.preserveNotes)
+  const [noteStatus, setNoteStatus] = useState('')
+  const saveTimer = useRef(null)
   const [searchError, setSearchError] = useState('')
   const [editor, setEditor] = useState(null)
   const [reorderNote, setReorderNote] = useState('')
@@ -106,6 +107,8 @@ export function App() {
     style.setProperty('--accent-text', ensureContrast(prefs.accent, prefs.paper))
     style.setProperty('--display-font', `'${prefs.font}', sans-serif`)
   }, [prefs])
+
+  useEffect(() => () => clearTimeout(saveTimer.current), [])
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -141,7 +144,10 @@ export function App() {
   function changeNotes(next) {
     const bounded = next.slice(0, LIMITS.noteLength)
     setNotes(bounded)
-    setNotesSaved(remember(writeText(localStorage, KEYS.notes, bounded)))
+    const saved = remember(writeText(localStorage, KEYS.notes, bounded))
+    setNoteStatus(saved ? 'saved locally' : 'not saved')
+    clearTimeout(saveTimer.current)
+    if (saved) saveTimer.current = setTimeout(() => setNoteStatus(''), 1600)
   }
 
   function changePrefs(next) {
@@ -343,12 +349,14 @@ export function App() {
       writeText(localStorage, KEYS.preferences, JSON.stringify(result.preferences)),
     ]
     if (writes.some((write) => !write.ok)) {
-      setNotesSaved(false)
+      clearTimeout(saveTimer.current)
+      setNoteStatus('not saved')
       setStorageError(
         'The backup is loaded in this tab, but browser storage did not save all of it. Export it before closing.',
       )
     } else {
-      setNotesSaved(true)
+      clearTimeout(saveTimer.current)
+      setNoteStatus('')
       setStorageError('')
       setRecovery([])
     }
@@ -370,7 +378,8 @@ export function App() {
     setPage(1)
     setRecovery([])
     setStorageError('')
-    setNotesSaved(true)
+    clearTimeout(saveTimer.current)
+    setNoteStatus('')
     return true
   }
 
@@ -941,8 +950,11 @@ export function App() {
                 <p className="eyebrow">SCRATCHPAD</p>
                 <h2>Keep a thought</h2>
               </div>
-              <span className="save-status" aria-live="polite">
-                {notesSaved ? 'saved locally' : 'not saved'}
+              <span
+                className={noteStatus === 'saved locally' ? 'save-status is-saved' : 'save-status'}
+                aria-live="polite"
+              >
+                {noteStatus}
               </span>
             </div>
             <textarea

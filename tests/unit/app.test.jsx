@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { App } from '../../src/app'
 import { KEYS } from '../../src/persistence'
 
@@ -123,6 +123,21 @@ describe('homepage', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/left untouched/i)
     expect(localStorage.getItem(KEYS.links)).toBe('{')
     expect(localStorage.getItem('unrelated')).toBe('keep')
+  })
+
+  it('flashes the scratchpad save and then hides it', () => {
+    vi.useFakeTimers()
+    try {
+      render(<App />)
+      expect(screen.queryByText('saved locally')).not.toBeInTheDocument()
+      fireEvent.change(screen.getByLabelText('Scratchpad'), { target: { value: 'hello' } })
+      expect(screen.getByText('saved locally')).toBeInTheDocument()
+      act(() => vi.advanceTimersByTime(1600))
+      expect(screen.queryByText('saved locally')).not.toBeInTheDocument()
+      expect(screen.getByLabelText('Scratchpad')).toHaveValue('hello')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('shows a failure when storage rejects a note', async () => {
