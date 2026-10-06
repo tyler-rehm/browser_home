@@ -8,5 +8,6 @@ test-results/
 .env.*
 !.env.example
 *.log
+vibe-report.md
 home-preferences.json
 code-home-backup.json

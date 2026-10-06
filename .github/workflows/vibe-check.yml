@@ -3,10 +3,10 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 jobs:
   vibe:
-    uses: tyler-rehm/agent-skills/.github/workflows/vibe-check.yml@v1.1
+    uses: tyler-rehm/agent-skills/.github/workflows/vibe-check.yml@v1.2

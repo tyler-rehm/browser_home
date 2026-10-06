@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Flag unreviewed AI pull requests, and run the portable vibe check in CI.
-- Comment on vibe-check findings, and open a pull request when a debugger statement can be removed.
+- Write the vibe check to a private-style report instead of pull request comments.
 
 ## 1.0.0 - 2026-10-06
 
