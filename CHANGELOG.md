@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+## 1.0.0 - 2026-10-06
+
 - Keep narrow pages from scrolling sideways when a link tooltip opens.
+- Update Fontsource to 5.3.0 and Prettier to 3.9.9.
 - Link Sponsor to GitHub Sponsors.
 - Add and edit groups from a dialog opened by + Group.
 - Drag a quick link and keep the card under the pointer.
