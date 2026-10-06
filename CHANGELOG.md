@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Line up Import backup and Export backup in Settings.
 - Show the scratchpad save for a moment, then hide it.
 - Remove the static ready mark from Useful tools.
 - Remove the arrow beside the star on each link card.

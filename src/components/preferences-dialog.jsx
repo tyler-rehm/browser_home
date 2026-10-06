@@ -120,8 +120,8 @@ function SettingsBody({ onClose, prefs, onChange, onImport, onExport, onReset })
         <p className="mt-2 text-xs text-[var(--muted)]">
           Quick links and tools. Search still opens in this tab.
         </p>
-        <div className="mt-6 flex flex-wrap gap-4 font-mono text-xs">
-          <label className="cursor-pointer underline">
+        <div className="backup-actions">
+          <label>
             Import backup
             <input
               hidden
@@ -131,7 +131,7 @@ function SettingsBody({ onClose, prefs, onChange, onImport, onExport, onReset })
               onChange={importFile}
             />
           </label>
-          <button type="button" onClick={onExport} className="underline">
+          <button type="button" onClick={onExport}>
             Export backup
           </button>
         </div>
