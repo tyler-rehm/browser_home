@@ -46,13 +46,15 @@ jobs:
         if: always()
         run: |
           printf '%s\n' \
+            "node ${{ matrix.node }}" \
             "format ${{ steps.format.outcome }}" \
             "lint ${{ steps.lint.outcome }}" \
             "unit ${{ steps.unit.outcome }}" \
             "build ${{ steps.build.outcome }}" \
             "browsers ${{ steps.browsers.outcome }}" \
             "e2e ${{ steps.e2e.outcome }}" \
-            "audit ${{ steps.audit.outcome }}"
+            "audit ${{ steps.audit.outcome }}" \
+            | tee "pipeline-result-node-${{ matrix.node }}.txt"
           test "${{ steps.format.outcome }}" = "success" \
             && test "${{ steps.lint.outcome }}" = "success" \
             && test "${{ steps.unit.outcome }}" = "success" \
@@ -60,6 +62,13 @@ jobs:
             && test "${{ steps.browsers.outcome }}" = "success" \
             && test "${{ steps.e2e.outcome }}" = "success" \
             && test "${{ steps.audit.outcome }}" = "success"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pipeline-result-node-${{ matrix.node }}
+          path: pipeline-result-node-${{ matrix.node }}.txt
+          retention-days: 7
+          if-no-files-found: error
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -79,3 +88,45 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+  mail:
+    needs: [test, dependency-review]
+    if: >-
+      always() &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: pipeline-result-node-*
+          merge-multiple: true
+          path: mail-in
+      - name: AWS CLI
+        run: |
+          if ! command -v aws >/dev/null; then
+            curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "$RUNNER_TEMP/awscliv2.zip"
+            unzip -q "$RUNNER_TEMP/awscliv2.zip" -d "$RUNNER_TEMP"
+            sudo "$RUNNER_TEMP/aws/install" --update
+          fi
+          aws --version
+      - name: Mail the pipeline result
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.PIPELINE_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PIPELINE_AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+          PIPELINE_MAIL_FROM: tyler@ivyleaguetech.com
+          PIPELINE_MAIL_TO: tyler@ivyleaguetech.com
+          PIPELINE_MAIL_SUBJECT: Code Home CI test ${{ needs.test.result }} dependency-review ${{ needs.dependency-review.result }}
+        run: |
+          printf '%s\n' \
+            "Workflow: ${{ github.workflow }}" \
+            "Tests: ${{ needs.test.result }}" \
+            "Dependency review: ${{ needs.dependency-review.result }}" \
+            "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            > "$RUNNER_TEMP/pipeline-mail.txt"
+          node scripts/pipeline-mail.js --body "$RUNNER_TEMP/pipeline-mail.txt" --attach-dir mail-in
