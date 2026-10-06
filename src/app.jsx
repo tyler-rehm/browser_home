@@ -688,6 +688,7 @@ export function App() {
                       name="name"
                       maxLength={LIMITS.groupName}
                       autoComplete="off"
+                      placeholder="Work"
                       value={newGroupName}
                       onChange={(event) => setNewGroupName(event.target.value)}
                     />

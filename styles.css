@@ -293,11 +293,21 @@ kbd {
   min-height: 44px;
   margin: 0;
   padding: 0 10px;
-}
-.link-filter input {
   border: 1px solid var(--line);
   border-radius: 5px;
   background: transparent;
+  color: var(--ink);
+  font: 14px var(--display-font);
+}
+.new-group .text-button,
+.rename-group .text-button {
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: transparent;
+}
+.rename-group button[type='button'] {
+  color: var(--accent-text);
 }
 .link-toolbar {
   flex-wrap: wrap;
@@ -326,6 +336,7 @@ kbd {
   background: var(--card);
 }
 .rename-group {
+  justify-content: flex-end;
   padding-top: 8px;
 }
 .empty-links {
