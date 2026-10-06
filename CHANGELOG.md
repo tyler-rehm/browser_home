@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Flag unreviewed AI pull requests, and run the portable vibe check in CI.
+
 ## 1.0.0 - 2026-10-06
 
 - Keep narrow pages from scrolling sideways when a link tooltip opens.

@@ -1,6 +1,6 @@
 # Copilot
 
-Follow `AGENTS.md`. It is the project contract.
+Follow `AGENTS.md`. It is the project contract, including the review canary.
 
 - Keep changes scoped to the requested behavior and the OpenSpec change when one is active.
 - Add or update a focused test for user-visible behavior.

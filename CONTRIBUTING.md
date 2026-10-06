@@ -26,6 +26,10 @@ Keep a change scoped. Add a unit test for validation, storage, or server behavio
 
 Do not add Tailwind Plus or Catalyst source. New UI uses the local components and Headless UI.
 
+## Agents
+
+AI help is fine. A person has to read the diff before it is opened. If a coding agent followed `AGENTS.md`, it left two lines at the top of `README.md`. Remove those lines yourself after you have read the change. Leave the confession box in the pull request template unchecked.
+
 ## Review
 
 Open a pull request into `main`. The template is the checklist. CI runs on Node 22, 24, and 26, and CodeQL runs `analyze`. Dependency updates and lockfile changes go through the same checks plus dependency review.
