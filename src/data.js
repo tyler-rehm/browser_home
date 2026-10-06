@@ -1,22 +1,26 @@
 export const DEFAULT_LINKS = [
-  { name: 'GitHub', url: 'https://github.com', short: 'GH' },
-  { name: 'ChatGPT', url: 'https://chatgpt.com', short: 'AI' },
-  { name: 'Vercel', url: 'https://vercel.com/dashboard', short: '▲' },
-  { name: 'Linear', url: 'https://linear.app', short: 'LI' },
-  { name: 'Google Drive', url: 'https://drive.google.com', short: 'GD' },
+  { name: 'GitHub', url: 'https://github.com/IvyLeagueTech', short: 'GH' },
+  { name: 'Cursor', url: 'https://cursor.com/dashboard', short: 'CU' },
   { name: 'Gmail', url: 'https://mail.google.com', short: 'GM' },
-  { name: 'Notion', url: 'https://notion.so', short: 'NO' },
-  { name: 'localhost', url: 'http://localhost:3000', short: '::' },
+  { name: 'Sheets', url: 'https://docs.google.com/spreadsheets', short: 'SH' },
+  { name: 'Slack', url: 'https://app.slack.com', short: 'SL' },
+  { name: 'Lightsail', url: 'https://lightsail.aws.amazon.com', short: 'LS' },
+  { name: 'Cloudflare', url: 'https://dash.cloudflare.com', short: 'CF' },
+  { name: 'Stripe', url: 'https://dashboard.stripe.com', short: 'ST' },
 ]
 export const TOOLS = [
   {
     name: 'GitHub repositories',
     detail: 'github.com',
-    url: 'https://github.com/?tab=repositories',
+    url: 'https://github.com/orgs/IvyLeagueTech/repositories',
   },
-  { name: 'Vercel deployments', detail: 'vercel.com', url: 'https://vercel.com/dashboard' },
-  { name: 'OpenAI platform', detail: 'platform.openai.com', url: 'https://platform.openai.com' },
-  { name: 'Can I use', detail: 'browser support', url: 'https://caniuse.com' },
+  { name: 'Twilio console', detail: 'console.twilio.com', url: 'https://console.twilio.com' },
+  {
+    name: 'Google Cloud',
+    detail: 'console.cloud.google.com',
+    url: 'https://console.cloud.google.com',
+  },
+  { name: 'Snyk', detail: 'app.snyk.io', url: 'https://app.snyk.io' },
 ]
 export const DEFAULT_PREFERENCES = {
   paper: '#eff1e9',

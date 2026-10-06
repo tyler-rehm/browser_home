@@ -25,15 +25,15 @@ describe('homepage', () => {
   it('moves a quick link with the arrow keys and saves the order', async () => {
     const user = userEvent.setup()
     render(<App />)
-    screen.getByRole('button', { name: 'Reorder ChatGPT' }).focus()
+    screen.getByRole('button', { name: 'Reorder Cursor' }).focus()
     await user.keyboard('{ArrowLeft}')
     const names = within(screen.getByRole('region', { name: 'Quick links' }))
       .getAllByRole('link')
       .map((link) => link.textContent)
-    expect(names[0]).toMatch(/ChatGPT/)
+    expect(names[0]).toMatch(/Cursor/)
     expect(names[1]).toMatch(/GitHub/)
-    expect(JSON.parse(localStorage.getItem(KEYS.links))[0].name).toBe('ChatGPT')
-    expect(screen.getByText('ChatGPT moved before GitHub')).toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem(KEYS.links))[0].name).toBe('Cursor')
+    expect(screen.getByText('Cursor moved before GitHub')).toBeInTheDocument()
   })
 
   it('opens links in a new tab until the preference is turned off', async () => {
@@ -312,7 +312,7 @@ describe('homepage', () => {
     expect(screen.getByRole('tab', { name: 'Results' })).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Favorites' })).not.toBeInTheDocument()
     expect(within(quickLinks).getByRole('link', { name: /GitHub/ })).toBeInTheDocument()
-    expect(within(quickLinks).queryByRole('link', { name: /ChatGPT/ })).not.toBeInTheDocument()
+    expect(within(quickLinks).queryByRole('link', { name: /Cursor/ })).not.toBeInTheDocument()
     expect(screen.getByText('1 result')).toBeInTheDocument()
     await user.clear(screen.getByLabelText('Filter links'))
     expect(screen.getByRole('tab', { name: 'All' })).toHaveAttribute('aria-selected', 'true')

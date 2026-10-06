@@ -27,11 +27,11 @@ test('add-link dialog closes on backdrop click', async ({ page }) => {
 test('drags a quick link into a new order and keeps it', async ({ page }) => {
   const grid = page.getByRole('region', { name: 'Quick links' })
   await page
-    .getByRole('button', { name: 'Reorder ChatGPT', exact: true })
+    .getByRole('button', { name: 'Reorder Cursor', exact: true })
     .dragTo(grid.getByRole('link', { name: /GitHub/ }))
-  await expect(grid.getByRole('link').nth(0)).toContainText('ChatGPT')
+  await expect(grid.getByRole('link').nth(0)).toContainText('Cursor')
   await page.reload()
-  await expect(grid.getByRole('link').nth(0)).toContainText('ChatGPT')
+  await expect(grid.getByRole('link').nth(0)).toContainText('Cursor')
 })
 
 test('keeps an icon color on the link after it moves', async ({ page }) => {
