@@ -6,13 +6,17 @@ export const LIMITS = {
   linkUrl: 2048,
   linkIcon: 16_000,
   linkCount: 48,
+  groupName: 40,
+  groupCount: 24,
+  pageSize: 8,
   noteLength: 8000,
   importBytes: 768 * 1024,
 }
 
 export const FONTS = ['Manrope', 'Inter', 'Avenir Next', 'Helvetica Neue', 'Georgia']
 
-export const PREFERENCE_KEYS = ['paper', 'ink', 'accent', 'secondary', 'font']
+export const APPEARANCE_KEYS = ['paper', 'ink', 'accent', 'secondary', 'font']
+export const PREFERENCE_KEYS = [...APPEARANCE_KEYS, 'openInNewTab']
 
 export function normalizeUrl(value) {
   if (typeof value !== 'string') throw new Error('URL is required')
@@ -70,12 +74,39 @@ function shortLabel(value) {
   return value.trim().slice(0, LIMITS.linkShort).toUpperCase()
 }
 
-const LINK_FIELDS = ['name', 'url', 'short', 'color', 'icon']
+const LINK_FIELDS = [
+  'id',
+  'name',
+  'url',
+  'short',
+  'color',
+  'icon',
+  'groupId',
+  'favorite',
+  'archivedAt',
+]
+const ID_PATTERN = /^[A-Za-z0-9-]{1,64}$/
+
+function optionalId(value, label) {
+  if (value == null || value === '') return { ok: true, value: '' }
+  if (typeof value !== 'string' || !ID_PATTERN.test(value)) {
+    return { ok: false, error: `${label} is malformed` }
+  }
+  return { ok: true, value }
+}
 
 function linkColor(value) {
   if (value == null || value === '') return ''
   if (!isHexColor(value)) return null
   return value.toLowerCase()
+}
+
+function archivedAt(value) {
+  if (value == null || value === '') return ''
+  if (typeof value !== 'string') return null
+  const parsed = Date.parse(value)
+  if (Number.isNaN(parsed)) return null
+  return new Date(parsed).toISOString()
 }
 
 function linkIcon(value) {
@@ -110,10 +141,119 @@ export function validateLink(input, { strictUnknown = false } = {}) {
   if (color == null) return { ok: false, error: 'Icon color must be a hex color' }
   const icon = linkIcon(input.icon)
   if (icon == null) return { ok: false, error: 'Icon image must be a small JPEG' }
-  const value = { name: input.name.trim(), url, short }
+  const id = optionalId(input.id, 'Link id')
+  if (!id.ok) return id
+  const groupId = optionalId(input.groupId, 'Group id')
+  if (!groupId.ok) return groupId
+  if ('favorite' in input && input.favorite != null && typeof input.favorite !== 'boolean') {
+    return { ok: false, error: 'Favorite must be true or false' }
+  }
+  const archived = archivedAt(input.archivedAt)
+  if (archived == null) return { ok: false, error: 'Archive date is malformed' }
+  const value = { name: input.name.trim(), url, short, favorite: input.favorite === true }
+  if (id.value) value.id = id.value
+  if (groupId.value) value.groupId = groupId.value
   if (color) value.color = color
   if (icon) value.icon = icon
+  if (archived) value.archivedAt = archived
   return { ok: true, value }
+}
+
+export function activeLinks(links) {
+  return links.filter((link) => !link.archivedAt)
+}
+
+export function archivedLinks(links) {
+  return links
+    .filter((link) => link.archivedAt)
+    .slice()
+    .sort((a, b) => b.archivedAt.localeCompare(a.archivedAt))
+}
+
+export function validateGroup(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return { ok: false, error: 'A group record is malformed' }
+  }
+  const id = optionalId(input.id, 'Group id')
+  if (!id.ok || !id.value) return { ok: false, error: 'Group id is malformed' }
+  if (typeof input.name !== 'string' || !input.name.trim()) {
+    return { ok: false, error: 'Group name is required' }
+  }
+  const name = input.name.trim()
+  if (name.length > LIMITS.groupName) return { ok: false, error: 'Group name is too long' }
+  return { ok: true, value: { id: id.value, name } }
+}
+
+export function validateGroupList(input) {
+  if (!Array.isArray(input)) return { ok: false, error: 'Groups must be a list' }
+  if (input.length > LIMITS.groupCount) return { ok: false, error: 'There are too many groups' }
+  const groups = []
+  const names = new Set()
+  const ids = new Set()
+  for (const item of input) {
+    const result = validateGroup(item)
+    if (!result.ok) return result
+    const key = result.value.name.toLocaleLowerCase()
+    if (names.has(key)) return { ok: false, error: 'A group with that name already exists' }
+    if (ids.has(result.value.id)) return { ok: false, error: 'A group id is duplicated' }
+    names.add(key)
+    ids.add(result.value.id)
+    groups.push(result.value)
+  }
+  return { ok: true, value: groups }
+}
+
+export function validateGroupName(name, groups, { ignoreId } = {}) {
+  if (!Array.isArray(groups)) return { ok: false, error: 'Groups must be a list' }
+  if (typeof name !== 'string' || !name.trim()) {
+    return { ok: false, error: 'Group name is required' }
+  }
+  const trimmed = name.trim()
+  if (trimmed.length > LIMITS.groupName) return { ok: false, error: 'Group name is too long' }
+  const key = trimmed.toLocaleLowerCase()
+  const duplicate = groups.some(
+    (group) => group.name.toLocaleLowerCase() === key && group.id !== ignoreId,
+  )
+  if (duplicate) return { ok: false, error: 'A group with that name already exists' }
+  if (ignoreId == null && groups.length >= LIMITS.groupCount) {
+    return { ok: false, error: 'There are too many groups' }
+  }
+  return { ok: true, value: trimmed }
+}
+
+export function displayGroupId(link, groups) {
+  if (!link?.groupId || !Array.isArray(groups)) return ''
+  return groups.some((group) => group.id === link.groupId) ? link.groupId : ''
+}
+
+export function withLinkIds(links) {
+  return links.map((link) => (link.id ? link : { ...link, id: globalThis.crypto.randomUUID() }))
+}
+
+export function linksInView(links, groups, view) {
+  if (view === 'favorites') return links.filter((link) => link.favorite)
+  if (view === 'all') return links
+  if (!groups.some((group) => group.id === view)) return []
+  return links.filter((link) => link.groupId === view)
+}
+
+export function filterLinks(links, groups, query) {
+  const needle = typeof query === 'string' ? query.trim().toLocaleLowerCase() : ''
+  if (!needle) return links
+  return links.filter((link) => {
+    const groupName = groups.find((group) => group.id === link.groupId)?.name || ''
+    return [link.name, link.url, link.short || '', groupName].some((part) =>
+      part.toLocaleLowerCase().includes(needle),
+    )
+  })
+}
+
+export function pageOf(items, page, size = LIMITS.pageSize) {
+  const total = items.length
+  const pages = Math.max(1, Math.ceil(total / size))
+  const current = Math.min(Math.max(1, Number.isInteger(page) ? page : 1), pages)
+  const start = (current - 1) * size
+  return { items: items.slice(start, start + size), page: current, pages, total }
 }
 
 export function validateLinkList(input, options = {}) {
@@ -151,6 +291,10 @@ export function validateStoredPreferences(input, defaults) {
     if (FONTS.includes(input.font)) value.font = input.font
     else repaired = true
   }
+  if ('openInNewTab' in input) {
+    if (typeof input.openInNewTab === 'boolean') value.openInNewTab = input.openInNewTab
+    else repaired = true
+  }
   return { ok: true, value, repaired }
 }
 
@@ -167,6 +311,13 @@ export function validateStrictPreferences(input, defaults) {
     if (key === 'font') {
       if (!FONTS.includes(input.font)) return { ok: false, error: 'That font is not supported' }
       value.font = input.font
+      continue
+    }
+    if (key === 'openInNewTab') {
+      if (typeof input.openInNewTab !== 'boolean') {
+        return { ok: false, error: 'New tab setting must be true or false' }
+      }
+      value.openInNewTab = input.openInNewTab
       continue
     }
     if (!isHexColor(input[key])) return { ok: false, error: `${key} must be a hex color` }

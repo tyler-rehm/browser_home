@@ -36,7 +36,7 @@ function PreferencesBody({ onClose, prefs, onChange, onImport, onExport, onReset
             <button
               type="button"
               key={name}
-              onClick={() => onChange(preset)}
+              onClick={() => onChange({ ...preset, openInNewTab: prefs.openInNewTab })}
               className="flex min-h-11 justify-center gap-1.5 rounded-lg border border-black/15 p-3"
               aria-label={`${name} theme`}
             >
@@ -82,6 +82,17 @@ function PreferencesBody({ onClose, prefs, onChange, onImport, onExport, onReset
             ))}
           </select>
         </label>
+        <label className="preference-toggle">
+          <input
+            type="checkbox"
+            checked={prefs.openInNewTab}
+            onChange={(event) => onChange({ ...prefs, openInNewTab: event.target.checked })}
+          />
+          Open links in a new tab
+        </label>
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          Quick links and tools. Search still opens in this tab.
+        </p>
         <div className="mt-6 flex flex-wrap gap-4 font-mono text-xs">
           <label className="cursor-pointer underline">
             Import backup
@@ -129,7 +140,10 @@ function PreferencesBody({ onClose, prefs, onChange, onImport, onExport, onReset
         ) : null}
       </DialogBody>
       <DialogActions>
-        <Button outline onClick={() => onChange(DEFAULT_PREFERENCES)}>
+        <Button
+          outline
+          onClick={() => onChange({ ...DEFAULT_PREFERENCES, openInNewTab: prefs.openInNewTab })}
+        >
           Default appearance
         </Button>
         <Button

@@ -12,7 +12,7 @@ The server listens on `127.0.0.1` and `::1`, port 4173. It accepts GET and HEAD 
 
 Anything that can call loopback on this Mac can open the page. The content security policy blocks remote scripts and connections from the page, and it allows inline styles for themes and dialogs. Custom color pairs are not forced into a contrast ratio. Built-in theme text is adjusted for readability at render time; the stored color is unchanged.
 
-Uninstall and reset do not promise to erase Safari's other data. Reset removes only `code-home-links`, `code-home-notes`, and `code-home-preferences`.
+Uninstall and reset do not promise to erase Safari's other data. Reset removes only `code-home-links`, `code-home-notes`, `code-home-preferences`, and `code-home-groups`.
 
 ## Out of scope
 

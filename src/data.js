@@ -24,6 +24,7 @@ export const DEFAULT_PREFERENCES = {
   accent: '#e56636',
   secondary: '#4c7358',
   font: 'Manrope',
+  openInNewTab: true,
 }
 export const PRESETS = {
   field: DEFAULT_PREFERENCES,

@@ -1,6 +1,12 @@
 import { DEFAULT_LINKS, DEFAULT_PREFERENCES } from './data.js'
 import { KEYS, readText } from './persistence.js'
-import { validateLinkList, validateNotes, validateStoredPreferences } from './records.js'
+import {
+  validateGroupList,
+  validateLinkList,
+  validateNotes,
+  validateStoredPreferences,
+  withLinkIds,
+} from './records.js'
 
 function hold(recovery, message) {
   recovery.push(message)
@@ -9,6 +15,7 @@ function hold(recovery, message) {
 export function loadHomepage(storage) {
   const recovery = []
   let preserveLinks = false
+  let preserveGroups = false
   let preserveNotes = false
   let preservePreferences = false
 
@@ -39,6 +46,28 @@ export function loadHomepage(storage) {
       } else {
         links = result.value
       }
+    }
+  }
+  links = withLinkIds(links)
+
+  let groups = []
+  const storedGroups = readText(storage, KEYS.groups)
+  if (storedGroups.state === 'blocked') {
+    preserveGroups = true
+    hold(recovery, 'Saved groups could not be read. They were left untouched.')
+  } else if (storedGroups.state === 'present') {
+    let parsed
+    try {
+      parsed = JSON.parse(storedGroups.raw)
+    } catch {
+      parsed = null
+    }
+    const result = parsed && validateGroupList(parsed)
+    if (!result || !result.ok) {
+      preserveGroups = true
+      hold(recovery, 'Saved groups could not be used. They were left untouched.')
+    } else {
+      groups = result.value
     }
   }
 
@@ -85,5 +114,15 @@ export function loadHomepage(storage) {
     }
   }
 
-  return { links, notes, preferences, recovery, preserveLinks, preserveNotes, preservePreferences }
+  return {
+    links,
+    groups,
+    notes,
+    preferences,
+    recovery,
+    preserveLinks,
+    preserveGroups,
+    preserveNotes,
+    preservePreferences,
+  }
 }

@@ -91,6 +91,50 @@ test('dialog restores focus after Escape', async ({ page }) => {
   await expect(trigger).toBeFocused()
 })
 
+test('groups a link, favorites it, filters, and shows the credits', async ({ page }) => {
+  await page.getByLabel('New group').fill('Work')
+  await page.getByRole('button', { name: 'Add group' }).click()
+  await expect(page.getByRole('tab', { name: 'Work' })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('button', { name: /add link/i }).click()
+  const dialog = page.getByRole('dialog', { name: 'Add a link' })
+  await dialog.getByLabel('Name', { exact: true }).fill('Example')
+  await dialog.getByLabel('URL', { exact: true }).fill('example.com')
+  await dialog.getByLabel('Group', { exact: true }).selectOption({ label: 'Work' })
+  await dialog.getByRole('button', { name: 'Add link', exact: true }).click()
+  await page.getByRole('tab', { name: 'Work' }).click()
+  await expect(page.getByRole('link', { name: /Example/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Add Example to Favorites' }).click()
+  await page.getByRole('tab', { name: 'Favorites' }).click()
+  await expect(page.getByRole('link', { name: /Example/ })).toBeVisible()
+  await page.getByLabel('Filter links').fill('exam')
+  await expect(page.getByRole('tab', { name: 'Results' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: 'Favorites' })).toHaveCount(0)
+  await expect(page.getByRole('link', { name: /Example/ })).toBeVisible()
+  const footer = page.getByRole('contentinfo')
+  await expect(footer).toContainText('Tyler Rehm')
+  await expect(footer).toContainText('Ivy League Tech, LLC')
+  await expect(footer.getByRole('link', { name: 'TylerRehm.com' })).toHaveAttribute(
+    'href',
+    'https://tylerrehm.com',
+  )
+  await expect(footer.getByRole('link', { name: 'IvyLeagueTech.com' })).toHaveAttribute(
+    'href',
+    'https://ivyleaguetech.com',
+  )
+  await expect(footer.getByRole('link', { name: 'MIT license' })).toHaveAttribute(
+    'href',
+    'https://github.com/tyler-rehm/browser_home/blob/main/LICENSE',
+  )
+  await expect(footer.getByRole('link', { name: 'GitHub repository' })).toHaveAttribute(
+    'href',
+    'https://github.com/tyler-rehm/browser_home',
+  )
+  await expect(footer.getByRole('link', { name: 'Email Tyler Rehm' })).toHaveAttribute(
+    'href',
+    'mailto:tyler@ivyleaguetech.com',
+  )
+})
+
 test('removing a link does not navigate', async ({ page }) => {
   await page.getByRole('button', { name: 'Remove GitHub' }).click()
   await expect(page.getByRole('button', { name: 'Remove GitHub' })).toHaveCount(0)
@@ -146,11 +190,11 @@ test('many links, narrow widths, and short viewports stay reachable', async ({ p
   })
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.reload()
-  const scrolls = await page.evaluate(
-    () => document.documentElement.scrollHeight > window.innerHeight + 1,
-  )
-  expect(scrolls).toBe(true)
-  await page.getByText('Link 23 with a very long label').scrollIntoViewIfNeeded()
+  await expect(page.getByRole('navigation', { name: 'Pagination' })).toBeVisible()
+  await page.getByRole('button', { name: 'Next page' }).click()
+  await page.getByRole('button', { name: 'Next page' }).click()
+  await expect(page.getByText('Link 23 with a very long label')).toBeVisible()
+  await page.getByLabel('Scratchpad').scrollIntoViewIfNeeded()
   await expect(page.getByLabel('Scratchpad')).toBeVisible()
   for (const size of [
     { width: 390, height: 700 },

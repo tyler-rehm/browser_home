@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Open quick links and tools in a new tab, with a preference to turn that off.
+- Archive links off the main page and restore or delete them from an archive table.
+
 - Replace the development-server homepage path with a loopback production server.
 - Validate stored links, notes, appearance, and backups, and surface failed saves.
 - Make link removal a separate control and keep the page usable when content grows.

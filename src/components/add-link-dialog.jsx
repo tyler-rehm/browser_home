@@ -1,16 +1,26 @@
 import { useRef, useState } from 'react'
 import { readLinkIcon } from '../icon.js'
-import { validateLink } from '../records.js'
+import { displayGroupId, validateLink } from '../records.js'
 import { Button } from './button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from './dialog'
 
-export function LinkDialog({ open, onClose, initial, fallbackColor, onSave }) {
+export function LinkDialog({
+  open,
+  onClose,
+  initial,
+  fallbackColor,
+  groups,
+  onCreateGroup,
+  onSave,
+}) {
   return (
     <Dialog open={open} onClose={onClose}>
       {open ? (
         <LinkDialogBody
           initial={initial}
           fallbackColor={fallbackColor}
+          groups={groups}
+          onCreateGroup={onCreateGroup}
           onClose={onClose}
           onSave={onSave}
         />
@@ -19,7 +29,7 @@ export function LinkDialog({ open, onClose, initial, fallbackColor, onSave }) {
   )
 }
 
-function LinkDialogBody({ initial, fallbackColor, onClose, onSave }) {
+function LinkDialogBody({ initial, fallbackColor, groups, onCreateGroup, onClose, onSave }) {
   const fileRef = useRef(null)
   const editing = Boolean(initial)
   const [error, setError] = useState('')
@@ -40,18 +50,34 @@ function LinkDialogBody({ initial, fallbackColor, onClose, onSave }) {
   function submit(event) {
     event.preventDefault()
     const fields = new FormData(event.currentTarget)
+    const selectedGroup = String(fields.get('groupId') || '')
     const result = validateLink({
       name: fields.get('name'),
       url: fields.get('url'),
       short: fields.get('short'),
       color,
       icon,
+      id: initial?.id,
+      favorite: initial?.favorite === true,
+      groupId: selectedGroup || undefined,
     })
     if (!result.ok) {
       setError(result.error)
       return
     }
-    const saved = onSave(result.value)
+    const value = { ...result.value }
+    const newGroup = String(fields.get('newGroup') || '')
+    if (newGroup.trim()) {
+      const created = onCreateGroup(newGroup)
+      if (!created.ok) {
+        setError(created.error)
+        return
+      }
+      value.groupId = created.group.id
+    } else if (!selectedGroup) {
+      delete value.groupId
+    }
+    const saved = onSave(value)
     if (!saved.ok) {
       setError(saved.error)
       return
@@ -100,6 +126,26 @@ function LinkDialogBody({ initial, fallbackColor, onClose, onSave }) {
               autoComplete="off"
               defaultValue={initial?.short ?? ''}
               placeholder="GH"
+            />
+          </label>
+          <label htmlFor="link-group">Group</label>
+          <select id="link-group" name="groupId" defaultValue={displayGroupId(initial, groups)}>
+            <option value="">No group</option>
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+          <label>
+            New group
+            <input
+              name="newGroup"
+              maxLength="40"
+              autoComplete="off"
+              placeholder="Work"
+              aria-invalid={error ? 'true' : undefined}
+              aria-describedby={error ? 'link-form-error' : undefined}
             />
           </label>
           <label>

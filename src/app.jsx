@@ -1,17 +1,76 @@
 import { useEffect, useRef, useState } from 'react'
 import { LinkDialog } from './components/add-link-dialog'
+import { Button } from './components/button'
+import { Dialog, DialogActions, DialogBody, DialogTitle } from './components/dialog'
 import { PreferencesDialog } from './components/preferences-dialog'
 import { DEFAULT_LINKS, DEFAULT_PREFERENCES, TOOLS } from './data'
 import { ensureContrast, readableForeground } from './color'
 import { downloadText } from './download'
 import { parseImport, serializeBackup } from './backup'
-import { host, reorderLinks, searchDestination, LIMITS } from './records'
+import {
+  host,
+  reorderLinks,
+  searchDestination,
+  LIMITS,
+  activeLinks,
+  archivedLinks,
+  filterLinks,
+  linksInView,
+  pageOf,
+  validateGroupName,
+  withLinkIds,
+} from './records'
 import { APP_KEYS, KEYS, removeKeys, writeText } from './persistence'
 import { loadHomepage } from './state'
+
+function stripGroup(link) {
+  if (!link.groupId) return link
+  const next = { ...link }
+  delete next.groupId
+  return next
+}
+
+function draggedId(event) {
+  try {
+    return event.dataTransfer?.getData('text/plain') || ''
+  } catch {
+    return ''
+  }
+}
+
+function outboundLinkProps(openInNewTab) {
+  if (!openInNewTab) return {}
+  return { target: '_blank', rel: 'noopener noreferrer' }
+}
+
+function archiveLabel(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
+function StarIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="m12 2.8 2.6 5.4 5.9.8-4.3 4.1 1 5.9L12 16.2 6.8 19l1-5.9-4.3-4.1 5.9-.8L12 2.8Z"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 export function App() {
   const [initial] = useState(() => loadHomepage(localStorage))
   const [links, setLinks] = useState(initial.links)
+  const [groups, setGroups] = useState(initial.groups)
   const [notes, setNotes] = useState(initial.notes)
   const [prefs, setPrefs] = useState(initial.preferences)
   const [recovery, setRecovery] = useState(initial.recovery)
@@ -22,7 +81,15 @@ export function App() {
   const [reorderNote, setReorderNote] = useState('')
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
-  const dragFrom = useRef(null)
+  const [view, setView] = useState('all')
+  const [page, setPage] = useState(1)
+  const [linkQuery, setLinkQuery] = useState('')
+  const [newGroupName, setNewGroupName] = useState('')
+  const [groupError, setGroupError] = useState('')
+  const [renameDraft, setRenameDraft] = useState('')
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const dragId = useRef(null)
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30000)
@@ -82,19 +149,173 @@ export function App() {
   }
 
   function saveLink(link) {
+    const record = link.id ? link : { ...link, id: globalThis.crypto.randomUUID() }
     if (editor?.index == null) {
       if (links.length >= LIMITS.linkCount) return { ok: false, error: 'There are too many links' }
-      changeLinks([...links, link])
+      const next = [record, ...links]
+      changeLinks(next)
+      setLinkQuery('')
+      setView('all')
+      setArchiveOpen(false)
+      setPage(1)
       return { ok: true }
     }
     const next = links.slice()
-    next[editor.index] = link
+    next[editor.index] = record
     changeLinks(next)
     return { ok: true }
   }
 
+  function createGroup(name) {
+    const result = validateGroupName(name, groups)
+    if (!result.ok) return result
+    const group = { id: globalThis.crypto.randomUUID(), name: result.value }
+    const next = [...groups, group]
+    setGroups(next)
+    if (!remember(writeText(localStorage, KEYS.groups, JSON.stringify(next)))) {
+      return { ok: false, error: 'Browser storage did not save that group.' }
+    }
+    return { ok: true, group }
+  }
+
+  function renameGroup(id, name) {
+    const result = validateGroupName(name, groups, { ignoreId: id })
+    if (!result.ok) return result
+    const next = groups.map((group) => (group.id === id ? { ...group, name: result.value } : group))
+    setGroups(next)
+    if (!remember(writeText(localStorage, KEYS.groups, JSON.stringify(next)))) {
+      return { ok: false, error: 'Browser storage did not save that group.' }
+    }
+    return { ok: true }
+  }
+
+  function deleteGroup(id) {
+    const nextGroups = groups.filter((group) => group.id !== id)
+    const groupWrite = writeText(localStorage, KEYS.groups, JSON.stringify(nextGroups))
+    if (!groupWrite.ok) {
+      remember(groupWrite)
+      return
+    }
+    setGroups(nextGroups)
+    if (view === id) {
+      setView('all')
+      setRenameDraft('')
+    }
+    const nextLinks = links.map((link) => (link.groupId === id ? stripGroup(link) : link))
+    const linkWrite = writeText(localStorage, KEYS.links, JSON.stringify(nextLinks))
+    if (!linkWrite.ok) {
+      remember(linkWrite)
+      return
+    }
+    setLinks(nextLinks)
+    remember(linkWrite)
+  }
+
+  function selectView(next, draft) {
+    setView(next)
+    setPage(1)
+    setGroupError('')
+    const group = groups.find((item) => item.id === next)
+    setRenameDraft(draft ?? group?.name ?? '')
+  }
+
+  function moveLink(fromId, toId) {
+    if (!fromId || !toId || fromId === toId) return
+    const from = links.findIndex((link) => link.id === fromId)
+    const to = links.findIndex((link) => link.id === toId)
+    if (from < 0 || to < 0) return
+    const moved = links[from]
+    const neighbor = links[to]
+    changeLinks(reorderLinks(links, from, to))
+    setReorderNote(
+      neighbor
+        ? `${moved.name} moved ${from > to ? 'before' : 'after'} ${neighbor.name}`
+        : `${moved.name} moved`,
+    )
+  }
+
+  function assignDropped(target) {
+    const id = dragId.current
+    if (!id) return
+    const current = links.find((link) => link.id === id)
+    if (!current) return
+    if (target === 'favorites') {
+      changeLinks(links.map((link) => (link.id === id ? { ...link, favorite: true } : link)))
+      setReorderNote(`${current.name} added to Favorites`)
+      return
+    }
+    if (target === 'all') {
+      changeLinks(links.map((link) => (link.id === id ? stripGroup(link) : link)))
+      setReorderNote(`${current.name} removed from its group`)
+      return
+    }
+    const group = groups.find((item) => item.id === target)
+    changeLinks(links.map((link) => (link.id === id ? { ...link, groupId: target } : link)))
+    setReorderNote(`${current.name} moved to ${group?.name ?? 'a group'}`)
+  }
+
+  function onTabDragOver(event) {
+    event.preventDefault()
+    event.currentTarget.classList.add('is-over')
+  }
+
+  function onTabDrop(event, target) {
+    event.preventDefault()
+    event.currentTarget.classList.remove('is-over')
+    if (!dragId.current) dragId.current = draggedId(event)
+    assignDropped(target)
+    dragId.current = null
+  }
+
+  function onTabsKeyDown(event) {
+    const order = ['favorites', 'all', ...groups.map((group) => group.id)]
+    const current = order.indexOf(view)
+    if (current < 0) return
+    const nextIndex =
+      event.key === 'ArrowRight'
+        ? (current + 1) % order.length
+        : event.key === 'ArrowLeft'
+          ? (current - 1 + order.length) % order.length
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? order.length - 1
+              : null
+    if (nextIndex == null) return
+    event.preventDefault()
+    const next = order[nextIndex]
+    selectView(next)
+    globalThis.queueMicrotask(() => document.getElementById(`tab-${next}`)?.focus())
+  }
+
+  function submitNewGroup(event) {
+    event.preventDefault()
+    const result = createGroup(newGroupName)
+    if (!result.ok) {
+      setGroupError(result.error)
+      return
+    }
+    setGroupError('')
+    setNewGroupName('')
+    selectView(result.group.id, result.group.name)
+  }
+
+  function submitRename(event) {
+    event.preventDefault()
+    if (!selectedGroup) return
+    const result = renameGroup(selectedGroup.id, renameDraft)
+    if (!result.ok) {
+      setGroupError(result.error)
+      return
+    }
+    setGroupError('')
+  }
+
   function exportBackup() {
-    downloadText('code-home-backup.json', serializeBackup({ links, notes, preferences: prefs }))
+    downloadText(
+      'code-home-backup.json',
+      serializeBackup({ links, groups, notes, preferences: prefs }),
+    )
   }
 
   async function importBackup(file) {
@@ -105,11 +326,18 @@ export function App() {
       changePrefs(result.preferences)
       return ''
     }
-    setLinks(result.links)
+    const nextLinks = withLinkIds(result.links)
+    const nextGroups = result.groups || []
+    setLinks(nextLinks)
+    setGroups(nextGroups)
     setNotes(result.notes)
     setPrefs(result.preferences)
+    setView('all')
+    setLinkQuery('')
+    setPage(1)
     const writes = [
-      writeText(localStorage, KEYS.links, JSON.stringify(result.links)),
+      writeText(localStorage, KEYS.links, JSON.stringify(nextLinks)),
+      writeText(localStorage, KEYS.groups, JSON.stringify(nextGroups)),
       writeText(localStorage, KEYS.notes, result.notes),
       writeText(localStorage, KEYS.preferences, JSON.stringify(result.preferences)),
     ]
@@ -132,9 +360,13 @@ export function App() {
       setStorageError('Reset did not finish. Saved data was left in place.')
       return false
     }
-    setLinks(DEFAULT_LINKS)
+    setLinks(withLinkIds(DEFAULT_LINKS))
+    setGroups([])
     setNotes('')
     setPrefs({ ...DEFAULT_PREFERENCES })
+    setView('all')
+    setLinkQuery('')
+    setPage(1)
     setRecovery([])
     setStorageError('')
     setNotesSaved(true)
@@ -157,6 +389,23 @@ export function App() {
   const greeting =
     now.getHours() < 12 ? 'Good morning' : now.getHours() < 18 ? 'Good afternoon' : 'Good evening'
   const notices = [...recovery, storageError].filter(Boolean)
+  const filtering = linkQuery.trim().length > 0
+  const selectedGroup = groups.find((group) => group.id === view) || null
+  const shownLinks = activeLinks(links)
+  const archived = archivedLinks(links)
+  const viewLinks = filtering
+    ? filterLinks(shownLinks, groups, linkQuery)
+    : linksInView(shownLinks, groups, view)
+  const linkTarget = outboundLinkProps(prefs.openInNewTab)
+  const paged = pageOf(viewLinks, page)
+  const activeTabId = filtering ? 'tab-results' : `tab-${view}`
+  const emptyCopy = filtering
+    ? 'No matching links'
+    : view === 'favorites'
+      ? 'No favorites yet'
+      : selectedGroup
+        ? 'No links in this group'
+        : 'No links yet'
 
   return (
     <>
@@ -192,7 +441,7 @@ export function App() {
             <button
               className="palette-button"
               aria-label="Customize colors and fonts"
-              title="Customize"
+              data-tip="Customize"
               onClick={() => setPrefsOpen(true)}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -243,128 +492,420 @@ export function App() {
             <p className="eyebrow">QUICK ACCESS</p>
             <h2>Where to?</h2>
           </div>
-          <button
-            className="text-button"
-            type="button"
-            onClick={() => setEditor({ link: null, index: null })}
-          >
-            + Add link
-          </button>
+          <div className="section-actions">
+            <button
+              className="section-icon"
+              type="button"
+              aria-pressed={archiveOpen}
+              aria-label={archived.length ? `Archive (${archived.length})` : 'Archive'}
+              data-tip={archived.length ? `Archive (${archived.length})` : 'Archive'}
+              onClick={() => setArchiveOpen((open) => !open)}
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M2 3h12v2H2z" />
+                <path d="M3 6h10v7H3z" />
+              </svg>
+              {archived.length ? (
+                <span className="section-icon-count" aria-hidden="true">
+                  {archived.length}
+                </span>
+              ) : null}
+            </button>
+            <button
+              className="section-icon"
+              type="button"
+              aria-label="Add link"
+              data-tip="Add link"
+              onClick={() => setEditor({ link: null, index: null })}
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8 2.5v11M2.5 8h11" />
+              </svg>
+            </button>
+            {archiveOpen ? null : (
+              <form className="link-filter" onSubmit={(event) => event.preventDefault()}>
+                <label htmlFor="link-filter">Filter links</label>
+                <input
+                  id="link-filter"
+                  type="search"
+                  value={linkQuery}
+                  autoComplete="off"
+                  onChange={(event) => {
+                    setLinkQuery(event.target.value)
+                    setPage(1)
+                  }}
+                />
+              </form>
+            )}
+          </div>
         </section>
-        <section className="link-grid" aria-label="Quick links">
-          {links.map((link, index) => {
-            const fill = link.color || prefs.ink
-            return (
-              <div
-                className="link-card"
-                key={`${link.url}-${link.name}`}
-                onDragOver={(event) => {
-                  event.preventDefault()
-                  event.currentTarget.classList.add('is-over')
-                }}
-                onDragLeave={(event) => {
-                  if (event.currentTarget.contains(event.relatedTarget)) return
-                  event.currentTarget.classList.remove('is-over')
-                }}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  event.currentTarget.classList.remove('is-over', 'is-dragging')
-                  const from = dragFrom.current
-                  dragFrom.current = null
-                  if (from === null || from === index) return
-                  const moved = links[from]
-                  changeLinks(reorderLinks(links, from, index))
-                  if (moved) setReorderNote(`${moved.name} moved`)
-                }}
-              >
-                <button
-                  className="move-link"
-                  type="button"
-                  draggable
-                  aria-label={`Reorder ${link.name}`}
-                  title="Drag, or press the arrow keys"
-                  onDragStart={(event) => {
-                    dragFrom.current = index
-                    event.dataTransfer.effectAllowed = 'move'
-                    event.dataTransfer.setData('text/plain', String(index))
-                    event.currentTarget.closest('.link-card')?.classList.add('is-dragging')
-                  }}
-                  onDragEnd={(event) => {
-                    dragFrom.current = null
-                    event.currentTarget.closest('.link-card')?.classList.remove('is-dragging')
-                  }}
-                  aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
-                  onKeyDown={(event) => {
-                    const delta =
-                      event.key === 'ArrowLeft' || event.key === 'ArrowUp'
-                        ? -1
-                        : event.key === 'ArrowRight' || event.key === 'ArrowDown'
-                          ? 1
-                          : 0
-                    if (!delta) return
-                    event.preventDefault()
-                    const to = index + delta
-                    if (to < 0 || to >= links.length) return
-                    changeLinks(reorderLinks(links, index, to))
-                    const neighbor = links[to]?.name
-                    setReorderNote(
-                      neighbor
-                        ? `${link.name} moved ${delta < 0 ? 'before' : 'after'} ${neighbor}`
-                        : `${link.name} moved`,
-                    )
-                  }}
+        <section className="quick-links" aria-label="Quick links">
+          {archiveOpen ? (
+            <div className="archive-panel">
+              {archived.length === 0 ? (
+                <p className="empty-links">No archived links</p>
+              ) : (
+                <table className="archive-table">
+                  <caption>Archived links</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Link</th>
+                      <th scope="col">Archived</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {archived.map((link) => (
+                      <tr key={link.id}>
+                        <td>
+                          <a href={link.url} {...linkTarget}>
+                            {link.name}
+                          </a>
+                          <small>{host(link.url)}</small>
+                        </td>
+                        <td>
+                          <time dateTime={link.archivedAt}>{archiveLabel(link.archivedAt)}</time>
+                        </td>
+                        <td className="archive-actions">
+                          <button
+                            className="text-button"
+                            type="button"
+                            aria-label={`Restore ${link.name}`}
+                            onClick={() => {
+                              changeLinks(
+                                links.map((item) => {
+                                  if (item.id !== link.id) return item
+                                  const restored = { ...item }
+                                  delete restored.archivedAt
+                                  return restored
+                                }),
+                              )
+                              setReorderNote(`${link.name} restored`)
+                            }}
+                          >
+                            Restore
+                          </button>
+                          <button
+                            className="text-button"
+                            type="button"
+                            aria-label={`Delete ${link.name}`}
+                            onClick={() => {
+                              changeLinks(links.filter((item) => item.id !== link.id))
+                              setReorderNote(`${link.name} deleted`)
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          ) : null}
+          {archiveOpen ? null : (
+            <>
+              <div className="link-toolbar">
+                <div
+                  className="link-tabs"
+                  role="tablist"
+                  aria-label="Link groups"
+                  onKeyDown={filtering ? undefined : onTabsKeyDown}
                 >
-                  <svg viewBox="0 0 10 16" aria-hidden="true">
-                    <circle cx="2" cy="2" r="1.2" />
-                    <circle cx="8" cy="2" r="1.2" />
-                    <circle cx="2" cy="8" r="1.2" />
-                    <circle cx="8" cy="8" r="1.2" />
-                    <circle cx="2" cy="14" r="1.2" />
-                    <circle cx="8" cy="14" r="1.2" />
-                  </svg>
-                </button>
-                <a className="link-open" href={link.url} draggable="false">
-                  <span
-                    className="link-icon"
-                    style={{ background: fill, color: readableForeground(fill) }}
-                  >
-                    {link.icon ? (
-                      <img src={link.icon} alt="" />
-                    ) : (
-                      link.short || link.name.slice(0, 2).toUpperCase()
-                    )}
-                  </span>
-                  <span className="link-copy">
-                    <strong>{link.name}</strong>
-                    <small>{host(link.url)}</small>
-                  </span>
-                  <span className="arrow" aria-hidden="true">
-                    ↗
-                  </span>
-                </a>
-                <button
-                  className="edit-link"
-                  type="button"
-                  draggable="false"
-                  aria-label={`Edit ${link.name}`}
-                  onClick={() => setEditor({ link, index })}
-                >
-                  <svg viewBox="0 0 16 16" aria-hidden="true">
-                    <path d="M11.2 1.8 14.2 4.8 5.5 13.5 2 14.2 2.7 10.7 11.2 1.8Z" />
-                  </svg>
-                </button>
-                <button
-                  className="remove-link"
-                  type="button"
-                  draggable="false"
-                  aria-label={`Remove ${link.name}`}
-                  onClick={() => changeLinks(links.filter((_, item) => item !== index))}
-                >
-                  ×
-                </button>
+                  {filtering ? (
+                    <button
+                      id="tab-results"
+                      className="link-tab"
+                      role="tab"
+                      type="button"
+                      aria-selected="true"
+                      aria-controls="link-panel"
+                    >
+                      Results
+                    </button>
+                  ) : (
+                    <>
+                      {[
+                        ['favorites', 'Favorites'],
+                        ['all', 'All'],
+                      ].map(([id, label]) => (
+                        <button
+                          key={id}
+                          id={`tab-${id}`}
+                          className="link-tab"
+                          role="tab"
+                          type="button"
+                          aria-selected={view === id}
+                          aria-controls="link-panel"
+                          tabIndex={view === id ? 0 : -1}
+                          onClick={() => selectView(id)}
+                          onDragOver={onTabDragOver}
+                          onDragLeave={(event) => event.currentTarget.classList.remove('is-over')}
+                          onDrop={(event) => onTabDrop(event, id)}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                      {groups.map((group) => (
+                        <button
+                          key={group.id}
+                          id={`tab-${group.id}`}
+                          className="link-tab"
+                          role="tab"
+                          type="button"
+                          aria-selected={view === group.id}
+                          aria-controls="link-panel"
+                          tabIndex={view === group.id ? 0 : -1}
+                          onClick={() => selectView(group.id)}
+                          onDragOver={onTabDragOver}
+                          onDragLeave={(event) => event.currentTarget.classList.remove('is-over')}
+                          onDrop={(event) => onTabDrop(event, group.id)}
+                        >
+                          {group.name}
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+                {filtering ? null : (
+                  <form className="new-group" onSubmit={submitNewGroup}>
+                    <label htmlFor="new-group">New group</label>
+                    <input
+                      id="new-group"
+                      name="name"
+                      maxLength={LIMITS.groupName}
+                      autoComplete="off"
+                      value={newGroupName}
+                      onChange={(event) => setNewGroupName(event.target.value)}
+                    />
+                    <button className="text-button" type="submit">
+                      Add group
+                    </button>
+                  </form>
+                )}
               </div>
-            )
-          })}
+              {filtering || !selectedGroup ? null : (
+                <form className="rename-group" onSubmit={submitRename}>
+                  <label htmlFor="rename-group">Rename group</label>
+                  <input
+                    id="rename-group"
+                    value={renameDraft}
+                    maxLength={LIMITS.groupName}
+                    autoComplete="off"
+                    onChange={(event) => setRenameDraft(event.target.value)}
+                  />
+                  <button className="text-button" type="submit">
+                    Save name
+                  </button>
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={() => setPendingDelete(selectedGroup)}
+                  >
+                    Delete group
+                  </button>
+                </form>
+              )}
+              {groupError ? (
+                <p role="alert" className="form-error">
+                  {groupError}
+                </p>
+              ) : null}
+              <div className="live-region" aria-live="polite">
+                {filtering
+                  ? `${viewLinks.length} ${viewLinks.length === 1 ? 'result' : 'results'}`
+                  : ''}
+              </div>
+              <div
+                id="link-panel"
+                role="tabpanel"
+                aria-labelledby={activeTabId}
+                className="link-grid"
+              >
+                {paged.total === 0 ? <p className="empty-links">{emptyCopy}</p> : null}
+                {paged.items.map((link) => {
+                  const fill = link.color || prefs.ink
+                  const favoriteLabel = link.favorite
+                    ? `Remove ${link.name} from Favorites`
+                    : `Add ${link.name} to Favorites`
+                  return (
+                    <div
+                      className="link-card"
+                      key={link.id}
+                      onDragOver={(event) => {
+                        event.preventDefault()
+                        event.currentTarget.classList.add('is-over')
+                      }}
+                      onDragLeave={(event) => {
+                        if (event.currentTarget.contains(event.relatedTarget)) return
+                        event.currentTarget.classList.remove('is-over')
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault()
+                        event.currentTarget.classList.remove('is-over', 'is-dragging')
+                        const fromId = dragId.current || draggedId(event)
+                        dragId.current = null
+                        moveLink(fromId, link.id)
+                      }}
+                    >
+                      <button
+                        className="move-link"
+                        type="button"
+                        draggable
+                        aria-label={`Reorder ${link.name}`}
+                        data-tip="Drag, or press the arrow keys"
+                        onDragStart={(event) => {
+                          dragId.current = link.id
+                          if (event.dataTransfer) {
+                            event.dataTransfer.effectAllowed = 'move'
+                            event.dataTransfer.setData('text/plain', link.id)
+                          }
+                          event.currentTarget.closest('.link-card')?.classList.add('is-dragging')
+                        }}
+                        onDragEnd={(event) => {
+                          dragId.current = null
+                          event.currentTarget.closest('.link-card')?.classList.remove('is-dragging')
+                        }}
+                        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
+                        onKeyDown={(event) => {
+                          const delta =
+                            event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+                              ? -1
+                              : event.key === 'ArrowRight' || event.key === 'ArrowDown'
+                                ? 1
+                                : 0
+                          if (!delta) return
+                          event.preventDefault()
+                          const fromVisible = paged.items.findIndex((item) => item.id === link.id)
+                          const toVisible = fromVisible + delta
+                          if (toVisible < 0 || toVisible >= paged.items.length) return
+                          moveLink(link.id, paged.items[toVisible].id)
+                        }}
+                      >
+                        <svg viewBox="0 0 10 16" aria-hidden="true">
+                          <circle cx="2" cy="2" r="1.2" />
+                          <circle cx="8" cy="2" r="1.2" />
+                          <circle cx="2" cy="8" r="1.2" />
+                          <circle cx="8" cy="8" r="1.2" />
+                          <circle cx="2" cy="14" r="1.2" />
+                          <circle cx="8" cy="14" r="1.2" />
+                        </svg>
+                      </button>
+                      <a className="link-open" href={link.url} draggable="false" {...linkTarget}>
+                        <span
+                          className="link-icon"
+                          style={{ background: fill, color: readableForeground(fill) }}
+                        >
+                          {link.icon ? (
+                            <img src={link.icon} alt="" />
+                          ) : (
+                            link.short || link.name.slice(0, 2).toUpperCase()
+                          )}
+                        </span>
+                        <span className="link-copy">
+                          <strong>{link.name}</strong>
+                          <small>{host(link.url)}</small>
+                        </span>
+                        <span className="arrow" aria-hidden="true">
+                          ↗
+                        </span>
+                      </a>
+                      <button
+                        className="star-link"
+                        type="button"
+                        draggable="false"
+                        aria-pressed={link.favorite}
+                        aria-label={favoriteLabel}
+                        data-tip={favoriteLabel}
+                        onClick={() =>
+                          changeLinks(
+                            links.map((item) =>
+                              item.id === link.id ? { ...item, favorite: !item.favorite } : item,
+                            ),
+                          )
+                        }
+                      >
+                        <StarIcon filled={link.favorite} />
+                      </button>
+                      <button
+                        className="edit-link"
+                        type="button"
+                        draggable="false"
+                        aria-label={`Edit ${link.name}`}
+                        data-tip={`Edit ${link.name}`}
+                        onClick={() =>
+                          setEditor({
+                            link,
+                            index: links.findIndex((item) => item.id === link.id),
+                          })
+                        }
+                      >
+                        <svg viewBox="0 0 16 16" aria-hidden="true">
+                          <path d="M11.2 1.8 14.2 4.8 5.5 13.5 2 14.2 2.7 10.7 11.2 1.8Z" />
+                        </svg>
+                      </button>
+                      <button
+                        className="archive-link"
+                        type="button"
+                        draggable="false"
+                        aria-label={`Archive ${link.name}`}
+                        data-tip={`Archive ${link.name}`}
+                        onClick={() => {
+                          changeLinks(
+                            links.map((item) =>
+                              item.id === link.id
+                                ? { ...item, archivedAt: new Date().toISOString() }
+                                : item,
+                            ),
+                          )
+                          setReorderNote(`${link.name} archived`)
+                        }}
+                      >
+                        <svg viewBox="0 0 16 16" aria-hidden="true">
+                          <path d="M2 3h12v2H2z" />
+                          <path d="M3 6h10v7H3z" />
+                        </svg>
+                      </button>
+                      <button
+                        className="remove-link"
+                        type="button"
+                        draggable="false"
+                        aria-label={`Remove ${link.name}`}
+                        data-tip={`Remove ${link.name}`}
+                        onClick={() => changeLinks(links.filter((item) => item.id !== link.id))}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+              {viewLinks.length > LIMITS.pageSize ? (
+                <nav className="pager" aria-label="Pagination">
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={() => setPage(paged.page - 1)}
+                    disabled={paged.page <= 1}
+                  >
+                    Previous page
+                  </button>
+                  <span aria-live="polite">
+                    Page {paged.page} of {paged.pages}
+                  </span>
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={() => setPage(paged.page + 1)}
+                    disabled={paged.page >= paged.pages}
+                  >
+                    Next page
+                  </button>
+                </nav>
+              ) : null}
+            </>
+          )}
         </section>
         <section className="lower-grid">
           <article className="panel commands-panel">
@@ -379,7 +920,7 @@ export function App() {
             </div>
             <div className="tool-list">
               {TOOLS.map((tool, index) => (
-                <a className="tool" href={tool.url} key={tool.url}>
+                <a className="tool" href={tool.url} key={tool.url} {...linkTarget}>
                   <span className="tool-number">0{index + 1}</span>
                   <strong>{tool.name}</strong>
                   <small>{tool.detail} ↗</small>
@@ -407,13 +948,47 @@ export function App() {
           </article>
         </section>
       </main>
+      <footer className="site-footer">
+        <p>Code Home by Tyler Rehm · Ivy League Tech, LLC</p>
+        <a href="https://tylerrehm.com">TylerRehm.com</a>
+        <a href="https://ivyleaguetech.com">IvyLeagueTech.com</a>
+        <span className="footer-gap" aria-hidden="true" />
+        <a href="https://github.com/tyler-rehm/browser_home/blob/main/LICENSE">MIT license</a>
+        <a href="https://github.com/tyler-rehm/browser_home">GitHub repository</a>
+        <a href="mailto:tyler@ivyleaguetech.com">Email Tyler Rehm</a>
+      </footer>
       <LinkDialog
         open={editor !== null}
         onClose={() => setEditor(null)}
         initial={editor?.link}
         fallbackColor={prefs.ink}
+        groups={groups}
+        onCreateGroup={createGroup}
         onSave={saveLink}
       />
+      <Dialog open={pendingDelete !== null} onClose={() => setPendingDelete(null)}>
+        {pendingDelete ? (
+          <>
+            <DialogTitle>Delete {pendingDelete.name}?</DialogTitle>
+            <DialogBody>
+              <p>Links in this group stay in All.</p>
+            </DialogBody>
+            <DialogActions>
+              <Button outline onClick={() => setPendingDelete(null)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  deleteGroup(pendingDelete.id)
+                  setPendingDelete(null)
+                }}
+              >
+                Delete group
+              </Button>
+            </DialogActions>
+          </>
+        ) : null}
+      </Dialog>
       <PreferencesDialog
         open={prefsOpen}
         onClose={() => setPrefsOpen(false)}

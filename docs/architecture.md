@@ -1,6 +1,8 @@
 # Architecture
 
-The browser loads a static React app. `src/records.js` validates links, notes, and appearance. `src/state.js` reads storage without repairing it on disk. `src/app.jsx` renders the page and writes only after a user edit, import, or confirmed reset.
+The browser loads a static React app. `src/records.js` validates links, groups, notes, and appearance. `src/state.js` reads storage without repairing it on disk. `src/app.jsx` renders the page and writes only after a user edit, import, or confirmed reset.
+
+Links stay a JSON array under `code-home-links`. Optional fields are `id`, `groupId`, and `favorite`. Group order lives in `code-home-groups` as `{ id, name }` records, so an empty group survives and a rename does not rewrite every link. A stored `groupId` that is missing from that list is shown as no group and is not written back on load.
 
 `npm run build` writes `dist/`. `src/server.js` serves that directory on loopback port 4173. The address you open is pinned by `publicHost` in `src/homepage.config.json` (`http://home.localhost:4173`). It is a fixed-port static server, not the Vite development server.
 

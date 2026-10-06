@@ -22,4 +22,4 @@ Before handing off behavior changes, run `npm run test:all`. Report the commands
 
 ## Storage
 
-Keys are `code-home-links`, `code-home-notes`, and `code-home-preferences`. Invalid stored data stays in place until the user edits, imports, or confirms a reset. Do not show a saved state after a failed write.
+Keys are `code-home-links`, `code-home-notes`, `code-home-preferences`, and `code-home-groups`. Invalid stored data stays in place until the user edits, imports, or confirms a reset. Do not show a saved state after a failed write. A link `groupId` that does not match a saved group is shown with no group and is not rewritten on load.

@@ -2,9 +2,10 @@ export const KEYS = {
   links: 'code-home-links',
   notes: 'code-home-notes',
   preferences: 'code-home-preferences',
+  groups: 'code-home-groups',
 }
 
-export const APP_KEYS = [KEYS.links, KEYS.notes, KEYS.preferences]
+export const APP_KEYS = [KEYS.links, KEYS.notes, KEYS.preferences, KEYS.groups]
 
 export function readText(storage, key) {
   try {
