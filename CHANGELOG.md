@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Link Sponsor to GitHub Sponsors.
 - Add and edit groups from a dialog opened by + Group.
 - Drag a quick link and keep the card under the pointer.
 - Line up Import backup and Export backup in Settings.

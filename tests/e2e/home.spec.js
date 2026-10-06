@@ -131,6 +131,10 @@ test('groups a link, favorites it, filters, and shows the credits', async ({ pag
     'href',
     'https://github.com/tyler-rehm/browser_home',
   )
+  await expect(footer.getByRole('link', { name: 'Sponsor' })).toHaveAttribute(
+    'href',
+    'https://github.com/sponsors/tyler-rehm',
+  )
   await expect(footer.getByRole('link', { name: 'Email Tyler Rehm' })).toHaveAttribute(
     'href',
     'mailto:tyler@ivyleaguetech.com',

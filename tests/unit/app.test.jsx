@@ -396,6 +396,10 @@ describe('homepage', () => {
       'href',
       'https://github.com/tyler-rehm/browser_home',
     )
+    expect(within(footer).getByRole('link', { name: 'Sponsor' })).toHaveAttribute(
+      'href',
+      'https://github.com/sponsors/tyler-rehm',
+    )
     expect(within(footer).getByRole('link', { name: 'Email Tyler Rehm' })).toHaveAttribute(
       'href',
       'mailto:tyler@ivyleaguetech.com',

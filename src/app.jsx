@@ -860,6 +860,7 @@ export function App() {
         <span className="footer-gap" aria-hidden="true" />
         <a href="https://github.com/tyler-rehm/browser_home/blob/main/LICENSE">MIT license</a>
         <a href="https://github.com/tyler-rehm/browser_home">GitHub repository</a>
+        <a href="https://github.com/sponsors/tyler-rehm">Sponsor</a>
         <a href="mailto:tyler@ivyleaguetech.com">Email Tyler Rehm</a>
       </footer>
       <GroupDialog

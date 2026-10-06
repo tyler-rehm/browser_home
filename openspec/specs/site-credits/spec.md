@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Identify who made Code Home and give a keyboard-reachable path to TylerRehm.com, IvyLeagueTech.com, the license, the source repository, and email.
+Identify who made Code Home and give a keyboard-reachable path to TylerRehm.com, IvyLeagueTech.com, the license, the source repository, GitHub Sponsors, and email.
 
 ## Requirements
 
@@ -11,7 +11,7 @@ The homepage SHALL end with a footer landmark after the main content. The footer
 
 #### Scenario: The footer is present
 - **WHEN** the user reaches the bottom of the homepage
-- **THEN** the footer shows the credit, TylerRehm.com, IvyLeagueTech.com, and the license, repository, and email links
+- **THEN** the footer shows the credit, TylerRehm.com, IvyLeagueTech.com, and the license, repository, sponsor, and email links
 
 #### Scenario: A keyboard user reaches the credits
 - **WHEN** the user tabs through the page to the footer
@@ -23,3 +23,10 @@ The footer SHALL link TylerRehm.com to `https://tylerrehm.com`, IvyLeagueTech.co
 #### Scenario: The email link opens a mail client
 - **WHEN** the user activates the email link
 - **THEN** the destination is `mailto:tyler@ivyleaguetech.com`
+
+### Requirement: Sponsor link
+The footer SHALL link Sponsor to `https://github.com/sponsors/tyler-rehm`.
+
+#### Scenario: Sponsor opens GitHub Sponsors
+- **WHEN** the user activates Sponsor
+- **THEN** the destination is `https://github.com/sponsors/tyler-rehm`
