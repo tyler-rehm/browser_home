@@ -58,7 +58,7 @@ Keys are never shown in the browser. Edit Keychain or the secrets file on this M
 
 <a id="balance-status"></a>
 
-Vendors do not expose remaining prepaid credit to ordinary inference API keys. Use **Balance** / **Console** on Model accounts (or the vendor site) to check credits. Homepage load does not call billing endpoints. Ask models may still show a numeric low/ok credit label only when a rare live probe succeeds (for example an OpenAI credit-grants response).
+Vendors do not expose remaining prepaid credit to ordinary inference API keys. Use **Balance** / **Console** on Model accounts (or the vendor site) to check credits. Homepage load, Ask models open, and Model accounts open do not call vendor billing endpoints. After an Ask fails with a clear insufficient-credits or quota error, Ask models may show a short low-credit hint that points you back to Balance.
 
 ## Claude
 
@@ -154,5 +154,15 @@ Reload `http://home.localhost:4173`. Click **ASK MODELS**.
 
 - Configured providers are checked.
 - Expiry warnings appear within 7 days of `expiresAt`.
-- Billing labels show remaining, low, or unknown.
+- Remaining credit is checked at the vendor via Model accounts **Balance** / **Console**, not as a live probe label on open.
 - Ask with `Reply with the single word pong.` Copy builds the dossier.
+
+## Safari smoke
+
+Playwright WebKit is not shipping Safari. After changing Ask models:
+
+1. `npm run build`, then update the login helper so Safari serves the new build and `docs/ask-models.md`.
+2. In Safari on `http://home.localhost:4173`, open Settings → Model accounts (no API keys visible).
+3. Open Ask models and complete one ask (or confirm an honest error). Use **Balance** / **Console** on Model accounts to check prepaid credit at the vendor.
+
+Record the date and observations in [`docs/release.md`](release.md) under Ask models (Safari).

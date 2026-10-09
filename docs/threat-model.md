@@ -6,7 +6,7 @@ Links, notes, and appearance in local storage. The built files. The LaunchAgent 
 
 ## Boundary
 
-The server listens on `127.0.0.1` and `::1`, port 4173. It accepts GET and HEAD for built assets, `GET /api/providers`, `GET /api/provider-status`, and `POST /api/ask` when the Host header is `127.0.0.1:4173`, `localhost:4173`, or the pinned name from `src/homepage.config.json` (`home.localhost:4173`). Other methods are rejected. Paths must stay inside the build directory after decoding and after `realpath`, including symbolic links. Errors are generic and do not include filesystem paths. Logs are lifecycle messages. They do not include notes, prompts, replies, or API keys. Provider-status probes run only when that route is requested, not on homepage load.
+The server listens on `127.0.0.1` and `::1`, port 4173. It accepts GET and HEAD for built assets, `GET /api/providers`, `GET /api/provider-status`, and `POST /api/ask` when the Host header is `127.0.0.1:4173`, `localhost:4173`, or the pinned name from `src/homepage.config.json` (`home.localhost:4173`). Other methods are rejected. Paths must stay inside the build directory after decoding and after `realpath`, including symbolic links. Errors are generic and do not include filesystem paths. Logs are lifecycle messages. They do not include notes, prompts, replies, or API keys. `GET /api/provider-status` returns local unknown stubs and does not call vendor billing endpoints. Homepage load does not request that route.
 
 ## Accepted limits
 

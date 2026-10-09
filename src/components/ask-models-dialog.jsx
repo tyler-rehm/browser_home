@@ -1,16 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatCompiledBundle, formatDossier, previewText, validatePrompt } from '../model-ask'
+import { isQuotaCreditError, lowCreditHint } from '../model-billing'
 import { SafeMarkdown } from '../safe-markdown'
 import { Button } from './button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from './dialog'
-
-function mergeBilling(providers, statuses) {
-  const byId = new Map((statuses || []).map((entry) => [entry.id, entry.billing]))
-  return providers.map((provider) => ({
-    ...provider,
-    billing: byId.get(provider.id) || null,
-  }))
-}
 
 function prettyRaw(raw) {
   if (typeof raw !== 'string' || !raw.trim()) return '(empty)'
@@ -74,9 +67,9 @@ function modelLabel(result) {
   return actual || requested
 }
 
-function needsRefreshSteps(provider) {
+function needsRefreshSteps(provider, quotaHints) {
   if (provider.expiryWarning) return true
-  if (provider.billing?.state === 'low') return true
+  if (quotaHints.get(provider.id)?.state === 'low') return true
   return false
 }
 
@@ -94,6 +87,7 @@ export function AskModelsDialog({ open, onClose, onManageAccounts }) {
   const [activeTab, setActiveTab] = useState('overview')
   const [providerView, setProviderView] = useState('rendered')
   const [askedAt, setAskedAt] = useState('')
+  const [quotaHints, setQuotaHints] = useState(() => new Map())
   const inflight = useRef(new Set())
   const runId = useRef(0)
   const copyTimer = useRef(0)
@@ -102,20 +96,15 @@ export function AskModelsDialog({ open, onClose, onManageAccounts }) {
     if (!open) return undefined
     const controller = new AbortController()
     let ignore = false
-    Promise.all([
-      fetch('/api/providers', { signal: controller.signal }).then((response) => {
+    fetch('/api/providers', { signal: controller.signal })
+      .then((response) => {
         if (!response.ok) throw new Error('list failed')
         return response.json()
-      }),
-      fetch('/api/provider-status', { signal: controller.signal })
-        .then((response) => (response.ok ? response.json() : { providers: [] }))
-        .catch(() => ({ providers: [] })),
-    ])
-      .then(([listPayload, statusPayload]) => {
+      })
+      .then((listPayload) => {
         if (ignore) return
         const list = Array.isArray(listPayload?.providers) ? listPayload.providers : []
-        const withBilling = mergeBilling(list, statusPayload?.providers)
-        setProviders(withBilling)
+        setProviders(list)
         setChecked(
           new Set(list.filter((provider) => provider.configured).map((provider) => provider.id)),
         )
@@ -248,6 +237,15 @@ export function AskModelsDialog({ open, onClose, onManageAccounts }) {
           next.set(provider.id, nextResult.ok ? 'ok' : 'failed')
           return next
         })
+        setQuotaHints((current) => {
+          const next = new Map(current)
+          if (nextResult.ok) {
+            next.delete(provider.id)
+          } else if (isQuotaCreditError(nextResult.error)) {
+            next.set(provider.id, lowCreditHint(provider.id))
+          }
+          return next
+        })
       }),
     )
 
@@ -377,17 +375,15 @@ export function AskModelsDialog({ open, onClose, onManageAccounts }) {
                   )}
                   <small>
                     {provider.expiryWarning ? provider.expiryWarning : ''}
-                    {provider.expiryWarning &&
-                    (provider.billing?.state === 'ok' || provider.billing?.state === 'low') &&
-                    provider.billing?.label
+                    {provider.expiryWarning && quotaHints.get(provider.id)?.state === 'low'
                       ? ' · '
                       : ''}
-                    {provider.billing?.state === 'ok' || provider.billing?.state === 'low'
-                      ? provider.billing.label
+                    {quotaHints.get(provider.id)?.state === 'low'
+                      ? quotaHints.get(provider.id).label
                       : ''}
                   </small>
                   <AskStatusBadge status={status} />
-                  {needsRefreshSteps(provider) ? (
+                  {needsRefreshSteps(provider, quotaHints) ? (
                     <a
                       className="ask-provider-doc"
                       href={provider.refreshDoc || '/docs/ask-models.md'}

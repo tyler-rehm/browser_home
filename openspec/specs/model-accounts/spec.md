@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Show per-provider AI connection status in Settings—configured state, model id, expiry, best-effort balance, and console/refresh links—without exposing API keys in the browser.
+Show per-provider AI connection status in Settings—configured state, model id, expiry, and Balance/Console/Refresh links—without exposing API keys or inventing remaining-credit amounts from ordinary API keys.
 
 ## Requirements
 
@@ -28,17 +28,6 @@ For each provider, Model accounts SHALL show whether it is configured, the confi
 - **WHEN** a provider has no key in the secret store
 - **THEN** that provider shows as not configured
 
-### Requirement: Billing status and operator links
-For each provider, Model accounts SHALL show the best-effort billing or credit label when status has loaded, a link to that vendor’s console URL, and a link to that provider’s refresh-steps documentation on the homepage origin. An explicit refresh control SHALL reload billing status without requiring a full page reload.
-
-#### Scenario: Status loads for configured providers
-- **WHEN** Model accounts is shown and billing status returns
-- **THEN** each provider shows its billing label and links for console and refresh steps
-
-#### Scenario: The operator refreshes status
-- **WHEN** the user activates Refresh status in Model accounts
-- **THEN** billing status is requested again and the labels update when the response arrives
-
 ### Requirement: Operator note points at docs, not secrets
 Model accounts SHALL include a short note that API keys are managed outside the browser (Keychain or local secrets file) and SHALL link to the Ask models documentation served under `/docs/ask-models.md`.
 
@@ -47,7 +36,7 @@ Model accounts SHALL include a short note that API keys are managed outside the 
 - **THEN** a docs link to `/docs/ask-models.md` is available
 
 ### Requirement: Balance, Console, and Refresh are button links
-For each provider, Model accounts SHALL offer three same-styled button links with icons: Balance (vendor billing URL), Console (vendor console URL), and Refresh (homepage refresh-steps doc). Model accounts SHALL NOT show a remaining-credit status line, because ordinary API keys cannot read vendor balances.
+For each provider, Model accounts SHALL offer three same-styled button links with icons: Balance (vendor billing URL), Console (vendor console URL), and Refresh (homepage refresh-steps doc). Model accounts SHALL NOT show a remaining-credit status line and SHALL NOT call a vendor balance endpoint when the panel opens or when those links are used.
 
 #### Scenario: The operator opens Balance
 - **WHEN** the user activates Balance for a provider
@@ -56,6 +45,10 @@ For each provider, Model accounts SHALL offer three same-styled button links wit
 #### Scenario: The operator opens Refresh
 - **WHEN** the user activates Refresh for a provider
 - **THEN** the browser opens that provider’s refresh-steps documentation on the homepage origin
+
+#### Scenario: Model accounts does not probe balances
+- **WHEN** the user opens Model accounts
+- **THEN** no vendor billing or credit-grant endpoint is contacted
 
 ### Requirement: Default model is chosen from a curated list
 For each configured provider, Model accounts SHALL offer a dropdown of curated model ids. Choosing a value SHALL persist that provider’s stored model override without exposing an API key.

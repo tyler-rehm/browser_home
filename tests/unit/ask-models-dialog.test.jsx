@@ -51,23 +51,6 @@ const providers = [
   },
 ]
 
-const statusPayload = {
-  providers: [
-    { id: 'anthropic', billing: { state: 'ok', label: 'Credits remaining', url: '' } },
-    {
-      id: 'openai',
-      billing: {
-        state: 'low',
-        label: 'Low credits',
-        url: 'https://platform.openai.com/settings/organization/billing',
-      },
-    },
-    { id: 'google', billing: { state: 'unknown', label: '', url: '' } },
-    { id: 'xai', billing: { state: 'ok', label: '$4.00 remaining', url: '' } },
-    { id: 'perplexity', billing: { state: 'unknown', label: '', url: '' } },
-  ],
-}
-
 function json(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,
@@ -87,7 +70,9 @@ describe('Ask models dialog', () => {
       vi.fn(async (url, init) => {
         calls.push({ url: String(url), init })
         if (String(url).endsWith('/api/providers')) return json({ providers })
-        if (String(url).endsWith('/api/provider-status')) return json(statusPayload)
+        if (String(url).endsWith('/api/provider-status')) {
+          throw new Error('provider-status must not be fetched for balance')
+        }
         const body = JSON.parse(init.body)
         if (body.id === 'anthropic') {
           return json({
@@ -137,17 +122,11 @@ describe('Ask models dialog', () => {
     expect(screen.getByRole('checkbox', { name: /Grok/ })).toBeEnabled()
     expect(screen.getByRole('checkbox', { name: /Perplexity/ })).toBeEnabled()
     expect(screen.getByText(/expires in 3 days/i)).toBeTruthy()
-    expect(screen.getByText(/Low credits/i)).toBeTruthy()
+    expect(screen.queryByText(/Low credit/i)).toBeNull()
     const refreshHrefs = screen
       .getAllByRole('link', { name: 'Refresh steps' })
       .map((link) => link.getAttribute('href'))
-    expect(refreshHrefs).toEqual(
-      expect.arrayContaining([
-        '/docs/ask-models.md#refresh-claude',
-        '/docs/ask-models.md#refresh-chatgpt',
-      ]),
-    )
-    expect(refreshHrefs).not.toContain('/docs/ask-models.md#refresh-perplexity')
+    expect(refreshHrefs).toEqual(['/docs/ask-models.md#refresh-claude'])
     fireEvent.click(screen.getByRole('checkbox', { name: /Grok/ }))
     expect(screen.getByRole('checkbox', { name: /Grok/ })).not.toBeChecked()
     await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'Compare these approaches')
@@ -207,7 +186,6 @@ describe('Ask models dialog', () => {
       'fetch',
       vi.fn(async (url) => {
         if (String(url).endsWith('/api/providers')) return json({ providers })
-        if (String(url).endsWith('/api/provider-status')) return json({ providers: [] })
         throw new Error(`unexpected ${url}`)
       }),
     )
@@ -218,7 +196,57 @@ describe('Ask models dialog', () => {
     expect(onManageAccounts).toHaveBeenCalled()
   })
 
-  it('does not show Refresh steps for unknown-only billing', async () => {
+  it('shows a low-credit hint after an ask fails for insufficient credits', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, init) => {
+        if (String(url).endsWith('/api/providers')) {
+          return json({
+            providers: providers.map((provider) => ({
+              ...provider,
+              expiryWarning: '',
+            })),
+          })
+        }
+        const body = JSON.parse(init.body)
+        if (body.id === 'openai') {
+          return json({
+            ok: false,
+            id: 'openai',
+            label: 'ChatGPT',
+            model: 'gpt-4.1',
+            error: 'You have insufficient credits',
+            httpStatus: 402,
+            raw: '',
+          })
+        }
+        return json({
+          ok: true,
+          id: body.id,
+          label: body.id,
+          model: 'model',
+          text: 'ok',
+          httpStatus: 200,
+          raw: '{}',
+        })
+      }),
+    )
+    const user = userEvent.setup()
+    render(<AskModelsDialog open onClose={() => {}} />)
+    await screen.findByRole('checkbox', { name: /ChatGPT/ })
+    fireEvent.click(screen.getByRole('checkbox', { name: /Claude/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Grok/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Perplexity/ }))
+    await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'Ping')
+    await user.click(screen.getByRole('button', { name: 'Ask' }))
+    expect(await screen.findByText(/Low credit — check Balance/i)).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Refresh steps' })).toHaveAttribute(
+      'href',
+      '/docs/ask-models.md#refresh-chatgpt',
+    )
+  })
+
+  it('does not show Refresh steps without expiry or quota failure', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url) => {
@@ -230,28 +258,11 @@ describe('Ask models dialog', () => {
             })),
           })
         }
-        if (String(url).endsWith('/api/provider-status')) {
-          return json({
-            providers: statusPayload.providers.map((entry) =>
-              entry.id === 'openai'
-                ? {
-                    id: 'openai',
-                    billing: {
-                      state: 'unknown',
-                      label: '',
-                      url: '',
-                    },
-                  }
-                : entry,
-            ),
-          })
-        }
         throw new Error(`unexpected ${url}`)
       }),
     )
     render(<AskModelsDialog open onClose={() => {}} />)
     await screen.findByRole('checkbox', { name: /Claude/ })
-    expect(screen.queryByText(/Not readable via API/i)).toBeNull()
     expect(screen.queryByRole('link', { name: 'Refresh steps' })).toBeNull()
   })
 
@@ -270,7 +281,6 @@ describe('Ask models dialog', () => {
             ),
           })
         }
-        if (String(url).endsWith('/api/provider-status')) return json({ providers: [] })
         const body = JSON.parse(init.body)
         if (body.id === 'google') {
           await geminiGate
@@ -318,9 +328,6 @@ describe('Ask models dialog', () => {
       'fetch',
       vi.fn((url, init) => {
         if (String(url).endsWith('/api/providers')) return Promise.resolve(json({ providers }))
-        if (String(url).endsWith('/api/provider-status')) {
-          return Promise.resolve(json({ providers: [] }))
-        }
         askSignal = init.signal
         return new Promise((_resolve, reject) => {
           init.signal.addEventListener('abort', () => {

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.1.0 - 2026-10-08
+
+- Add Ask models: send one prompt to Claude, ChatGPT, Gemini, Grok, and Perplexity and copy a dossier of replies.
+- Store provider API keys in Keychain (with a local secrets-file fallback) outside the browser.
+- Add Settings → Model accounts with Balance, Console, and Refresh links, curated model defaults, and docs.
+- Serve Ask models operator docs from the homepage origin under `/docs/ask-models.md`.
+- Stop live vendor balance probes; check prepaid credit at the vendor console. Hint low credit only after a clear ask quota failure.
 - Flag unreviewed AI pull requests, and run the portable vibe check in CI.
 - Write the vibe check to a private-style report instead of pull request comments.
 

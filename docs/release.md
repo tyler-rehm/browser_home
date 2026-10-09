@@ -16,6 +16,15 @@ These gates were checked on the dates written beside them.
 
 WebKit in Playwright is not that check.
 
+## Ask models (Safari)
+
+Playwright Chromium/WebKit is not shipping Safari. Leave these unchecked until a human runs them on the installed login service.
+
+- [x] After `npm run build`, run the documented service update (`node scripts/home-service.js update` or equivalent). Confirm Safari at `http://home.localhost:4173` shows **ASK MODELS** and `/docs/ask-models.md` loads with refresh anchors. Confirmed 2026-10-09.
+- [x] In shipping Safari: Settings → Model accounts lists Claude, ChatGPT, Gemini, Grok, and Perplexity without showing API keys. Configured vs not-configured state is honest. Confirmed 2026-10-09.
+- [x] Open Ask models, select at least one configured provider (or confirm none are selectable when none are configured), and complete one ask or see an honest error. Copy remains available after a settled result when applicable. Confirmed 2026-10-09.
+- [x] Balance, Console, and Refresh on Model accounts open the vendor billing URL, vendor console URL, and homepage refresh-steps doc respectively. Confirmed 2026-10-09.
+
 ## GitHub
 
 - [x] Protected `main` and required checks are configured. Verified 2026-10-05: strict checks `test (22)`, `test (24)`, `test (26)`, and `analyze`, each bound to GitHub Actions. Pull requests need one code-owner approval. Force-push and branch deletion are off. Admin enforcement is off so the owner is not locked out of a one-person repo.

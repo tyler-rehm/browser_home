@@ -94,15 +94,19 @@ When a configured provider has an `expiresAt` date and that date is within 7 day
 - **THEN** Ask models does not show an expiry warning for that provider
 
 ### Requirement: Billing status is visible after open
-After Ask models opens, each configured provider SHALL show a billing status of remaining credit when known, low credit when under the documented threshold, or unknown when the vendor does not expose a remaining balance. Opening the homepage without opening Ask models SHALL NOT call a billing endpoint.
+After Ask models opens, the page SHALL NOT call a vendor billing or credit-grant endpoint. Ask models SHALL NOT show remaining-credit amounts from balance probes. A low-credit hint MAY appear only after an ask failure that clearly indicates insufficient credits or quota, and SHALL include that provider’s billing URL when shown. Opening the homepage without opening Ask models SHALL NOT call a model provider or vendor billing endpoint.
 
 #### Scenario: Ask models opens with a low balance
-- **WHEN** the user opens Ask models and a configured provider reports remaining credit below the low threshold
-- **THEN** that provider shows a low-credit warning
+- **WHEN** the user opens Ask models and a configured provider previously failed an ask for insufficient credits
+- **THEN** that provider may show a low-credit hint with its billing URL, and no vendor billing endpoint is contacted on open
 
 #### Scenario: The homepage loads alone
 - **WHEN** Safari opens the homepage and the user does not open Ask models
 - **THEN** no provider billing endpoint is contacted
+
+#### Scenario: Ask models opens without probing balances
+- **WHEN** the user opens Ask models with configured providers and no prior quota failure hint
+- **THEN** no vendor billing or credit-grant endpoint is contacted and no remaining-credit amount from a probe is shown
 
 ### Requirement: Anthropic workspace support
 When Anthropic secrets include a workspace id, Ask SHALL send that workspace on Anthropic requests. When the workspace id is absent, Ask SHALL call Anthropic without that header.

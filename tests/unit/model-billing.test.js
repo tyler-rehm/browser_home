@@ -1,13 +1,14 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest'
-import { loadProviderBilling } from '../../src/model-billing.js'
+import { describe, expect, it, vi } from 'vitest'
+import { isQuotaCreditError, loadProviderBilling, lowCreditHint } from '../../src/model-billing.js'
 
 const KEY = 'configured-test-key'
 
 describe('model billing status', () => {
-  it('marks OpenAI low when remaining credit is under one dollar', async () => {
-    const fetch = async () =>
-      new Response(JSON.stringify({ total_available: 0.25 }), { status: 200 })
+  it('returns local unknown status without calling fetch', async () => {
+    const fetch = vi.fn(async () => {
+      throw new Error('vendor billing must not be contacted')
+    })
     const statuses = await loadProviderBilling(
       [
         {
@@ -17,18 +18,6 @@ describe('model billing status', () => {
           configured: true,
           apiKey: KEY,
         },
-      ],
-      { fetch },
-    )
-    const openai = statuses.find((entry) => entry.id === 'openai')
-    expect(openai.billing.state).toBe('low')
-    expect(openai.billing.label).toMatch(/Low credit/)
-    expect(JSON.stringify(openai)).not.toContain(KEY)
-  })
-
-  it('returns empty unknown labels for providers without a balance API', async () => {
-    const statuses = await loadProviderBilling(
-      [
         {
           id: 'google',
           label: 'Gemini',
@@ -37,40 +26,25 @@ describe('model billing status', () => {
           apiKey: KEY,
         },
       ],
-      {
-        fetch: async () => {
-          throw new Error('should not call for google in this probe path')
-        },
-      },
-    )
-    const google = statuses.find((entry) => entry.id === 'google')
-    expect(google.billing.state).toBe('unknown')
-    expect(google.billing.label).toBe('')
-  })
-
-  it('treats an opaque OpenAI billing 403 as unknown, not low', async () => {
-    const fetch = async () =>
-      new Response(
-        '{"error":{"message":"You have insufficient credits for this billing endpoint"}}',
-        {
-          status: 403,
-        },
-      )
-    const statuses = await loadProviderBilling(
-      [
-        {
-          id: 'openai',
-          label: 'ChatGPT',
-          model: 'gpt-4.1',
-          configured: true,
-          apiKey: KEY,
-        },
-      ],
       { fetch },
     )
-    const openai = statuses.find((entry) => entry.id === 'openai')
-    expect(openai.billing.state).toBe('unknown')
-    expect(openai.billing.label).toBe('')
-    expect(openai.billing.label).not.toMatch(/no api credits/i)
+    expect(fetch).not.toHaveBeenCalled()
+    expect(statuses).toHaveLength(5)
+    for (const entry of statuses) {
+      expect(entry.billing.state).toBe('unknown')
+      expect(entry.billing.label).toBe('')
+    }
+    expect(JSON.stringify(statuses)).not.toContain(KEY)
+  })
+
+  it('detects clear quota and credit ask errors', () => {
+    expect(isQuotaCreditError('You have insufficient credits')).toBe(true)
+    expect(isQuotaCreditError('quota exceeded for this key')).toBe(true)
+    expect(isQuotaCreditError('No API credits remaining')).toBe(true)
+    expect(isQuotaCreditError('upstream down')).toBe(false)
+    expect(lowCreditHint('openai')).toMatchObject({
+      state: 'low',
+      url: expect.stringContaining('openai.com'),
+    })
   })
 })

@@ -296,8 +296,9 @@ describe('production server', () => {
     expect(status.status).toBe(200)
     const billing = JSON.parse(status.body).providers
     expect(billing).toHaveLength(5)
+    expect(billing.every((entry) => entry.billing?.state === 'unknown')).toBe(true)
     expect(status.body).not.toContain(key)
-    expect(calls.length).toBeGreaterThan(beforeBilling)
+    expect(calls.length).toBe(beforeBilling)
 
     const posted = await request({ port, method: 'POST', requestPath: '/' })
     expect(posted.status).toBe(405)
