@@ -410,4 +410,83 @@ describe('homepage', () => {
     expect(rule).toContain('.site-footer a:focus-visible')
     expect(rule).toContain('outline: 2px solid var(--ink)')
   })
+
+  it('previews a JSON link import, adds it, and requires confirmation before replace', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem(KEYS.notes, 'keep this note')
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.upload(
+      screen.getByLabelText('Import links file'),
+      new File(
+        [JSON.stringify([{ name: 'Imported', url: 'https://imported.example/', group: 'Desk' }])],
+        'links.json',
+        { type: 'application/json' },
+      ),
+    )
+    expect(screen.getByRole('heading', { name: 'Import links' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('name')
+    expect(screen.getByLabelText('URL')).toHaveValue('url')
+    expect(screen.getByLabelText('Group')).toHaveValue('group')
+    expect(screen.getByRole('cell', { name: 'Imported' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Import links' }))
+    const quickLinks = () => screen.getByRole('region', { name: 'Quick links' })
+    expect(within(quickLinks()).getByRole('link', { name: /Imported/ })).toBeInTheDocument()
+    expect(within(quickLinks()).getByRole('link', { name: /GitHub/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Desk' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.upload(
+      screen.getByLabelText('Import links file'),
+      new File(
+        [JSON.stringify([{ name: 'Replacement', url: 'https://replacement.example/' }])],
+        'links.json',
+        { type: 'application/json' },
+      ),
+    )
+    await user.click(screen.getByRole('radio', { name: 'Replace current links' }))
+    await user.click(screen.getByRole('button', { name: 'Replace links' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/cannot be recovered/i)
+    await user.click(screen.getByRole('button', { name: 'Cancel replace' }))
+    expect(
+      JSON.parse(localStorage.getItem(KEYS.links)).some((link) => link.name === 'Imported'),
+    ).toBe(true)
+    await user.click(screen.getByRole('button', { name: 'Replace links' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm replace' }))
+    expect(within(quickLinks()).queryByRole('link', { name: /Imported/ })).not.toBeInTheDocument()
+    expect(within(quickLinks()).queryByRole('link', { name: /GitHub/ })).not.toBeInTheDocument()
+    expect(within(quickLinks()).getByRole('link', { name: /Replacement/ })).toBeInTheDocument()
+    expect(screen.getByLabelText('Scratchpad')).toHaveValue('keep this note')
+    expect(localStorage.getItem(KEYS.groups)).toBe('[]')
+  })
+
+  it('opens Ask models without writing the prompt to storage', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              providers: [
+                { id: 'anthropic', label: 'Claude', model: 'claude-sonnet-5-5', configured: true },
+                { id: 'openai', label: 'ChatGPT', model: 'gpt-4.1', configured: false },
+                { id: 'google', label: 'Gemini', model: 'gemini-2.5-pro', configured: false },
+                { id: 'xai', label: 'Grok', model: 'grok-3', configured: false },
+              ],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+      ),
+    )
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Ask models' }))
+    expect(await screen.findByRole('heading', { name: 'Ask models' })).toBeInTheDocument()
+    expect(await screen.findByRole('checkbox', { name: /Claude/ })).toBeEnabled()
+    expect(screen.getByRole('checkbox', { name: /Gemini/ })).toBeDisabled()
+    const before = JSON.stringify(localStorage)
+    await user.type(screen.getByRole('textbox', { name: 'Prompt' }), 'do not store this prompt')
+    expect(JSON.stringify(localStorage)).toBe(before)
+    vi.unstubAllGlobals()
+  })
 })

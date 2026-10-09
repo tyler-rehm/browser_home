@@ -11,6 +11,7 @@ export const LIMITS = {
   pageSize: 8,
   noteLength: 8000,
   importBytes: 768 * 1024,
+  bookmarkImportBytes: 4 * 1024 * 1024,
 }
 
 export const FONTS = ['Manrope', 'Inter', 'Avenir Next', 'Helvetica Neue', 'Georgia']

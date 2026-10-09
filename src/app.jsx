@@ -10,15 +10,18 @@ import {
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { useEffect, useRef, useState } from 'react'
 import { LinkDialog } from './components/add-link-dialog'
+import { AskModelsDialog } from './components/ask-models-dialog'
 import { Button } from './components/button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from './components/dialog'
 import { GroupDialog } from './components/group-dialog'
+import { ImportLinksDialog } from './components/import-links-dialog'
 import { PreferencesDialog, SettingsDialog } from './components/preferences-dialog'
 import { DroppableTab, QuickLinkOverlay, SortableQuickLink } from './components/quick-link-card'
 import { DEFAULT_LINKS, DEFAULT_PREFERENCES, TOOLS } from './data'
 import { ensureContrast } from './color'
 import { downloadText } from './download'
 import { parseImport, serializeBackup } from './backup'
+import { parseLinkImport } from './link-import'
 import {
   host,
   reorderLinks,
@@ -97,6 +100,9 @@ export function App() {
   const [reorderNote, setReorderNote] = useState('')
   const [prefsOpen, setPrefsOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsSection, setSettingsSection] = useState('')
+  const [askOpen, setAskOpen] = useState(false)
+  const [linkImport, setLinkImport] = useState(null)
   const [now, setNow] = useState(() => new Date())
   const [view, setView] = useState('all')
   const [page, setPage] = useState(1)
@@ -370,6 +376,44 @@ export function App() {
     return ''
   }
 
+  async function stageLinkImport(file) {
+    if (file.size > LIMITS.bookmarkImportBytes) return 'That file is too large.'
+    let text
+    try {
+      text = await file.text()
+    } catch {
+      return 'That file could not be read.'
+    }
+    const result = parseLinkImport(text)
+    if (!result.ok) return result.error
+    setLinkImport(result)
+    setSettingsOpen(false)
+    return ''
+  }
+
+  function applyImportedLinks(nextLinks, nextGroups) {
+    setLinks(nextLinks)
+    setGroups(nextGroups)
+    setView('all')
+    setLinkQuery('')
+    setPage(1)
+    setArchiveOpen(false)
+    const writes = [
+      writeText(localStorage, KEYS.links, JSON.stringify(nextLinks)),
+      writeText(localStorage, KEYS.groups, JSON.stringify(nextGroups)),
+    ]
+    if (writes.some((write) => !write.ok)) {
+      setStorageError(
+        'The links are loaded in this tab, but browser storage did not save them. Export a backup before closing.',
+      )
+    } else {
+      setStorageError('')
+      setRecovery([])
+    }
+    setLinkImport(null)
+    return ''
+  }
+
   function resetApplication() {
     const removed = removeKeys(localStorage, APP_KEYS)
     if (!removed.ok) {
@@ -456,11 +500,17 @@ export function App() {
                 )}
               </span>
             </div>
+            <button type="button" className="ask-models-button" onClick={() => setAskOpen(true)}>
+              Ask models
+            </button>
             <button
               className="palette-button"
               aria-label="Settings"
               data-tip="Settings"
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => {
+                setSettingsSection('')
+                setSettingsOpen(true)
+              }}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="12" cy="12" r="3" />
@@ -910,12 +960,34 @@ export function App() {
       />
       <SettingsDialog
         open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        onClose={() => {
+          setSettingsOpen(false)
+          setSettingsSection('')
+        }}
         prefs={prefs}
         onChange={changePrefs}
         onImport={importBackup}
+        onImportLinks={stageLinkImport}
         onExport={exportBackup}
         onReset={resetApplication}
+        focusSection={settingsSection}
+      />
+      <AskModelsDialog
+        open={askOpen}
+        onClose={() => setAskOpen(false)}
+        onManageAccounts={() => {
+          setAskOpen(false)
+          setSettingsSection('model-accounts')
+          setSettingsOpen(true)
+        }}
+      />
+      <ImportLinksDialog
+        open={linkImport !== null}
+        draft={linkImport}
+        existingLinks={links}
+        existingGroups={groups}
+        onClose={() => setLinkImport(null)}
+        onApply={applyImportedLinks}
       />
     </>
   )

@@ -79,6 +79,7 @@ The page itself is configured in Safari, not in a config file:
 - Quick links: add, edit, remove, archive, and drag. Arrow keys on the grip move a link. Favorites and All are always there. Add your own groups with + Group, put a link in one group from the link dialog or by dragging it onto a tab, and mark a favorite with the star. All shows every link that is not archived. Archive, beside Add link, lists archived links with the date, Restore, and Delete. A view with more than 8 links is paged. Filter links beside Add link. Each link can keep a color and a circular image. Quick links and tools open in a new tab. Turn that off under Settings. Search still uses this tab.
 - Scratchpad: notes save as you type.
 - Appearance, the palette icon: themes, colors, and type. Settings, the gear: new-tab behavior, backup import and export, and reset. Backups are JSON on your Mac. See `docs/backups.md`.
+- Ask models: one prompt, a subset of Claude, ChatGPT, Gemini, Grok, and Perplexity, and a Copy button for the dossier. This is on the production server (`npm start` or the login helper), not the Vite dev server. Keys stay in Keychain or a local secrets file—never the repo. Setup, expiry warnings, and balance labels are in `docs/ask-models.md`.
 
 ## Safari
 

@@ -52,6 +52,12 @@ Limits are 48 links, 60-character names, 2-character short labels, 2048-characte
 
 Version 1 files still import. Their links come back with no group and not favorite. Unknown fields, an unsupported version, or an invalid value reject the whole file. Nothing already on the page changes.
 
+## Link import
+
+Settings can also read a bookmark export or a JSON list of links. The file is recognized from its structure: Netscape HTML from Chrome, Edge, Firefox, or Safari; a Chrome or Edge `Bookmarks` file; a Firefox JSON backup; or a JSON array (or `{ "links": [] }` / `{ "bookmarks": [] }`). Browser folders become groups, except the browser's own bar, menu, and other root folders. Only HTTP and HTTPS addresses are offered.
+
+The preview shows the field mapping and the links that will be saved. JSON lists can remap name, URL, and group. Add keeps current links and reuses a group when the name already exists. Replace removes current links and groups after a confirmation that the removed data cannot be recovered. Notes and appearance stay either way. At most 48 links and 24 groups are saved, and bookmark files over 4 MB are rejected. Nothing is written until the preview is confirmed.
+
 ## Legacy appearance
 
 An object with only `paper`, `ink`, `accent`, `secondary`, and `font` is treated as an older appearance export. Supported values update appearance. Links and notes stay as they are. `examples/home-preferences.example.json` is that shape and is safe to commit. `home-preferences.json` and `code-home-backup.json` are personal and ignored.

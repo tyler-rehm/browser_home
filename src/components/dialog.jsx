@@ -41,7 +41,13 @@ export function Dialog({ open, onClose, size = 'md', className, children }) {
         <DialogPanel
           className={clsx(
             'pointer-events-auto relative w-full rounded-md border border-black/15 bg-[var(--paper)] p-8 text-[var(--ink)] shadow-xl',
-            size === 'lg' ? 'max-w-lg' : 'max-w-md',
+            size === '2xl'
+              ? 'max-w-5xl'
+              : size === 'xl'
+                ? 'max-w-4xl'
+                : size === 'lg'
+                  ? 'max-w-lg'
+                  : 'max-w-md',
             className,
           )}
         >

@@ -1,0 +1,112 @@
+# model-ask Specification
+
+## Purpose
+
+Send one prompt to a chosen subset of configured model providers and collect each reply into a single copyable dossier, including Perplexity, expiry warnings, and billing status.
+
+## Requirements
+
+### Requirement: Provider list includes five models and hides secrets
+The Ask models surface SHALL list Claude, ChatGPT, Gemini, Grok, and Perplexity. Each entry SHALL show whether that provider is configured. The page, browser storage, and provider-list response MUST NOT contain an API key.
+
+#### Scenario: The dialog opens
+- **WHEN** the user opens Ask models
+- **THEN** the five providers are listed with a configured or not-configured state and no API key is present in the page
+
+#### Scenario: The secrets store is empty
+- **WHEN** the operator has not provided Keychain or file secrets
+- **THEN** every provider is not configured and no provider is called
+
+### Requirement: Only selected configured providers are called
+The user SHALL choose any subset of configured providers. Ask SHALL send the prompt only to the checked providers. A provider that is not configured MUST NOT be selectable or called.
+
+#### Scenario: A subset is checked
+- **WHEN** the user enters a prompt, checks two configured providers, leaves the others unchecked, and asks
+- **THEN** only the two checked providers are called
+
+#### Scenario: A provider has no key
+- **WHEN** a provider is not configured
+- **THEN** its control is unavailable and asking does not call it
+
+### Requirement: Prompt limits
+Ask SHALL reject an empty prompt and a prompt longer than 32000 characters. A rejected ask MUST NOT call any provider.
+
+#### Scenario: The prompt is empty
+- **WHEN** the user asks with an empty prompt
+- **THEN** the ask is refused and no provider is called
+
+#### Scenario: The prompt is too long
+- **WHEN** the user asks with a prompt longer than 32000 characters
+- **THEN** the ask is refused and no provider is called
+
+### Requirement: Independent results
+Each selected provider SHALL be requested on its own. A timeout of 60 seconds, an upstream error, or a bad key SHALL be reported on that provider only. Successful replies from the other selected providers SHALL be kept.
+
+#### Scenario: One provider fails
+- **WHEN** one selected provider times out or returns an error and another selected provider returns a reply
+- **THEN** the failure is shown for the first provider and the reply is shown for the second
+
+#### Scenario: The user closes the dialog
+- **WHEN** the user closes Ask models while a request is still running
+- **THEN** that request is aborted
+
+### Requirement: Copyable dossier
+After at least one selected request has settled, Copy SHALL place one markdown dossier on the clipboard. The dossier SHALL include the prompt and, for each settled provider, its display name, the model id that was requested, its status, and either the reply text or a short error. The error MUST NOT include the API key. Copy SHALL be unavailable before any request has settled.
+
+#### Scenario: Two results are copied
+- **WHEN** one selected provider has returned a reply, another has failed, and the user copies
+- **THEN** the clipboard text contains the prompt, both display names, both model ids, the reply, and the failure
+
+#### Scenario: Nothing has settled
+- **WHEN** the user has not yet asked, or no selected request has settled
+- **THEN** copy is unavailable
+
+### Requirement: Prompt is not stored
+The prompt and provider replies MUST NOT be written to browser storage or to server logs.
+
+#### Scenario: An ask finishes
+- **WHEN** the user sends a prompt and a provider returns a reply
+- **THEN** that prompt and reply are absent from browser storage and from server logs
+
+### Requirement: Perplexity uses the Agent API
+Ask models SHALL treat Perplexity as a first-class provider. When configured and checked, Ask SHALL send the prompt to Perplexity's Agent API responses endpoint with an Agent preset (default `fast`) and include its settled result in the dossier. Ask SHALL NOT route other vendors through Perplexity Router; each other provider keeps its first-party API.
+
+#### Scenario: Perplexity is checked
+- **WHEN** the user checks a configured Perplexity provider and asks
+- **THEN** Perplexity's Agent API is called and its reply or failure appears in the results and in the copied dossier
+
+### Requirement: Expiry warning within seven days
+When a configured provider has an `expiresAt` date and that date is within 7 days of now, Ask models SHALL show a warning on that provider. The warning SHALL name the provider and point the operator to the refresh steps for that provider in the Ask models documentation. A missing `expiresAt` SHALL NOT produce an expiry warning.
+
+#### Scenario: A key expires in under seven days
+- **WHEN** the user opens Ask models and a configured provider expires in fewer than 7 days
+- **THEN** that provider shows an expiry warning with a pointer to its refresh steps
+
+#### Scenario: No expiry is stored
+- **WHEN** a configured provider has no `expiresAt`
+- **THEN** Ask models does not show an expiry warning for that provider
+
+### Requirement: Billing status is visible after open
+After Ask models opens, each configured provider SHALL show a billing status of remaining credit when known, low credit when under the documented threshold, or unknown when the vendor does not expose a remaining balance. Opening the homepage without opening Ask models SHALL NOT call a billing endpoint.
+
+#### Scenario: Ask models opens with a low balance
+- **WHEN** the user opens Ask models and a configured provider reports remaining credit below the low threshold
+- **THEN** that provider shows a low-credit warning
+
+#### Scenario: The homepage loads alone
+- **WHEN** Safari opens the homepage and the user does not open Ask models
+- **THEN** no provider billing endpoint is contacted
+
+### Requirement: Anthropic workspace support
+When Anthropic secrets include a workspace id, Ask SHALL send that workspace on Anthropic requests. When the workspace id is absent, Ask SHALL call Anthropic without that header.
+
+#### Scenario: A workspace id is stored
+- **WHEN** Anthropic is configured with a workspace id and the user asks Claude
+- **THEN** the Anthropic request includes that workspace id
+
+### Requirement: Gemini default remains callable
+The built-in Gemini default model id SHALL be one that accepts new API users. An operator model override in secrets SHALL still win when present.
+
+#### Scenario: Gemini uses the built-in default
+- **WHEN** Gemini is configured with an empty model override and the user asks
+- **THEN** the request uses the built-in default model id, not a retired id that rejects new users

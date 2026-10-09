@@ -19,6 +19,12 @@ const browser = {
   setTimeout: 'readonly',
   clearTimeout: 'readonly',
   getComputedStyle: 'readonly',
+  fetch: 'readonly',
+  navigator: 'readonly',
+  AbortController: 'readonly',
+  AbortSignal: 'readonly',
+  Response: 'readonly',
+  globalThis: 'readonly',
 }
 
 const node = {
