@@ -4,7 +4,9 @@ The browser loads a static React app. `src/records.js` validates links, groups, 
 
 Links stay a JSON array under `code-home-links`. Optional fields are `id`, `groupId`, and `favorite`. Group order lives in `code-home-groups` as `{ id, name }` records, so an empty group survives and a rename does not rewrite every link. A stored `groupId` that is missing from that list is shown as no group and is not written back on load.
 
-`npm run build` writes `dist/`. `src/server.js` serves that directory on loopback port 4173. The address you open is pinned by `publicHost` in `src/homepage.config.json` (`http://home.localhost:4173`). It is a fixed-port static server, not the Vite development server.
+`npm run build` writes `dist/`. `src/server.js` serves that directory on loopback port 4173. The address you open is pinned by `publicHost` in `src/homepage.config.json` (`http://home.localhost:4173`). It is a fixed-port static server, not the Vite development server. The page may call only that origin (`connect-src 'self'`).
+
+Ask models is served there, not by the Vite dev server. `GET /api/providers` lists Claude, ChatGPT, Gemini, and Grok without API keys. `POST /api/ask` sends one prompt to one provider. Keys are read from `CODE_HOME_SECRETS_FILE` when that variable is set, otherwise from `~/Library/Application Support/browser-home/model-secrets.json`. Point that path at the iCloud file, or symlink it. The server never writes the file. Logs stay lifecycle messages: no prompt, no reply, and no key.
 
 `scripts/home-service.js` is optional. It copies the build into `~/Library/Application Support/browser-home` and registers a user LaunchAgent. Tests call it with temporary directories and do not register a service on the developer machine.
 

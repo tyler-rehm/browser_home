@@ -49,8 +49,12 @@ export function replaceInstall(staging, current, previous) {
   try {
     fs.renameSync(staging, current)
     const index = path.join(current, 'dist', 'index.html')
-    const server = path.join(current, 'server.js')
-    if (!fs.existsSync(index) || !fs.existsSync(server)) throw new Error('incomplete install')
+    const required = ['server.js', 'model-ask.js', 'model-secret-store.js', 'model-billing.js'].map(
+      (name) => path.join(current, name),
+    )
+    if (!fs.existsSync(index) || required.some((file) => !fs.existsSync(file))) {
+      throw new Error('incomplete install')
+    }
     fs.rmSync(previous, { recursive: true, force: true })
   } catch (error) {
     fs.rmSync(current, { recursive: true, force: true })
@@ -91,14 +95,33 @@ export function install(deps) {
   if (!deps.configFile || !fs.existsSync(deps.configFile)) {
     return fail('Homepage address config is missing.')
   }
+  if (!deps.modelAskFile || !fs.existsSync(deps.modelAskFile)) {
+    return fail('The model ask module is missing.')
+  }
+  if (!deps.modelSecretStoreFile || !fs.existsSync(deps.modelSecretStoreFile)) {
+    return fail('The model secret store module is missing.')
+  }
+  if (!deps.modelBillingFile || !fs.existsSync(deps.modelBillingFile)) {
+    return fail('The model billing module is missing.')
+  }
+  if (!deps.askModelsDocFile || !fs.existsSync(deps.askModelsDocFile)) {
+    return fail('The Ask models documentation file is missing.')
+  }
   const paths = servicePaths(deps.home)
   fs.rmSync(paths.staging, { recursive: true, force: true })
   fs.mkdirSync(paths.staging, { recursive: true, mode: 0o755 })
   fs.mkdirSync(paths.logDir, { recursive: true, mode: 0o755 })
   fs.cpSync(deps.buildDir, path.join(paths.staging, 'dist'), { recursive: true })
   fs.copyFileSync(deps.serverFile, path.join(paths.staging, 'server.js'))
+  fs.copyFileSync(deps.modelAskFile, path.join(paths.staging, 'model-ask.js'))
+  fs.copyFileSync(deps.modelSecretStoreFile, path.join(paths.staging, 'model-secret-store.js'))
+  fs.copyFileSync(deps.modelBillingFile, path.join(paths.staging, 'model-billing.js'))
   fs.copyFileSync(deps.configFile, path.join(paths.staging, 'homepage.config.json'))
-  fs.chmodSync(path.join(paths.staging, 'server.js'), 0o644)
+  fs.mkdirSync(path.join(paths.staging, 'docs'), { recursive: true, mode: 0o755 })
+  fs.copyFileSync(deps.askModelsDocFile, path.join(paths.staging, 'docs', 'ask-models.md'))
+  for (const name of ['server.js', 'model-ask.js', 'model-secret-store.js', 'model-billing.js']) {
+    fs.chmodSync(path.join(paths.staging, name), 0o644)
+  }
   try {
     replaceInstall(paths.staging, paths.current, paths.previous)
   } catch {
@@ -181,6 +204,19 @@ function liveDeps(argv) {
     nodePath: process.execPath,
     buildDir: path.resolve(buildFlag >= 0 ? argv[buildFlag + 1] : path.join(process.cwd(), 'dist')),
     serverFile: path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/server.js'),
+    modelAskFile: path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/model-ask.js'),
+    modelSecretStoreFile: path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '../src/model-secret-store.js',
+    ),
+    modelBillingFile: path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '../src/model-billing.js',
+    ),
+    askModelsDocFile: path.join(
+      path.dirname(fileURLToPath(import.meta.url)),
+      '../docs/ask-models.md',
+    ),
     configFile: path.join(
       path.dirname(fileURLToPath(import.meta.url)),
       '../src/homepage.config.json',

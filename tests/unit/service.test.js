@@ -22,8 +22,16 @@ function fixture() {
   fs.writeFileSync(path.join(buildDir, 'index.html'), '<h1>home</h1>')
   fs.writeFileSync(nodePath, '')
   const serverFile = path.join(home, 'server.js')
+  const modelAskFile = path.join(home, 'model-ask.js')
+  const modelSecretStoreFile = path.join(home, 'model-secret-store.js')
+  const modelBillingFile = path.join(home, 'model-billing.js')
+  const askModelsDocFile = path.join(home, 'ask-models.md')
   const configFile = path.join(home, 'homepage.config.json')
   fs.writeFileSync(serverFile, 'export {}\n')
+  fs.writeFileSync(modelAskFile, 'export {}\n')
+  fs.writeFileSync(modelSecretStoreFile, 'export {}\n')
+  fs.writeFileSync(modelBillingFile, 'export {}\n')
+  fs.writeFileSync(askModelsDocFile, '# Ask models\n<a id="refresh-chatgpt"></a>\n')
   fs.writeFileSync(configFile, '{"publicHost":"home.localhost"}\n')
   const calls = []
   const deps = {
@@ -33,6 +41,10 @@ function fixture() {
     nodePath,
     buildDir,
     serverFile,
+    modelAskFile,
+    modelSecretStoreFile,
+    modelBillingFile,
+    askModelsDocFile,
     configFile,
     execFile(command, args) {
       expect(command).toBe('plutil')
@@ -66,6 +78,12 @@ describe('macOS service', () => {
     )
     expect(fs.readFileSync(path.join(paths.current, 'homepage.config.json'), 'utf8')).toContain(
       'home.localhost',
+    )
+    expect(fs.existsSync(path.join(paths.current, 'model-ask.js'))).toBe(true)
+    expect(fs.existsSync(path.join(paths.current, 'model-secret-store.js'))).toBe(true)
+    expect(fs.existsSync(path.join(paths.current, 'model-billing.js'))).toBe(true)
+    expect(fs.readFileSync(path.join(paths.current, 'docs', 'ask-models.md'), 'utf8')).toContain(
+      'refresh-chatgpt',
     )
     const other = path.join(home, 'Library', 'Application Support', 'other-app', 'keep.txt')
     fs.mkdirSync(path.dirname(other), { recursive: true })

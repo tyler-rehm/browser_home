@@ -3,6 +3,7 @@ import { DEFAULT_PREFERENCES, PRESETS } from '../data'
 import { FONTS, LIMITS } from '../records.js'
 import { Button } from './button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from './dialog'
+import { ModelAccountsPanel } from './model-accounts-panel'
 
 export function PreferencesDialog(props) {
   return (
@@ -14,7 +15,7 @@ export function PreferencesDialog(props) {
 
 export function SettingsDialog(props) {
   return (
-    <Dialog open={props.open} onClose={props.onClose} size="lg">
+    <Dialog open={props.open} onClose={props.onClose} size="2xl">
       {props.open ? <SettingsBody {...props} /> : null}
     </Dialog>
   )
@@ -93,9 +94,21 @@ function AppearanceBody({ onClose, prefs, onChange }) {
   )
 }
 
-function SettingsBody({ onClose, prefs, onChange, onImport, onExport, onReset }) {
+function SettingsBody({
+  onClose,
+  prefs,
+  onChange,
+  onImport,
+  onImportLinks,
+  onExport,
+  onReset,
+  focusSection = '',
+}) {
   const [error, setError] = useState('')
   const [confirming, setConfirming] = useState(false)
+  const [tab, setTab] = useState(() =>
+    focusSection === 'model-accounts' ? 'model-accounts' : 'general',
+  )
 
   async function importFile(event) {
     const file = event.target.files?.[0]
@@ -105,75 +118,128 @@ function SettingsBody({ onClose, prefs, onChange, onImport, onExport, onReset })
     setError(message)
   }
 
+  async function importLinks(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    const message = await onImportLinks(file)
+    setError(message)
+  }
+
   return (
     <>
       <DialogTitle>Settings</DialogTitle>
+      <div className="settings-tabs" role="tablist" aria-label="Settings sections">
+        <button
+          type="button"
+          role="tab"
+          className="settings-tab"
+          aria-selected={tab === 'general'}
+          onClick={() => setTab('general')}
+        >
+          General
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className="settings-tab"
+          aria-selected={tab === 'model-accounts'}
+          onClick={() => setTab('model-accounts')}
+        >
+          Model accounts
+        </button>
+      </div>
       <DialogBody>
-        <label className="preference-toggle">
-          <input
-            type="checkbox"
-            checked={prefs.openInNewTab}
-            onChange={(event) => onChange({ ...prefs, openInNewTab: event.target.checked })}
-          />
-          Open links in a new tab
-        </label>
-        <p className="mt-2 text-xs text-[var(--muted)]">
-          Quick links and tools. Search still opens in this tab.
-        </p>
-        <div className="backup-actions">
-          <label>
-            Import backup
-            <input
-              hidden
-              type="file"
-              accept="application/json,.json"
-              aria-label="Import backup"
-              onChange={importFile}
-            />
-          </label>
-          <button type="button" onClick={onExport}>
-            Export backup
-          </button>
-        </div>
-        <p className="mt-3 text-xs text-[var(--muted)]">
-          Backups include links, notes, and appearance. Files over{' '}
-          {Math.round(LIMITS.importBytes / 1024)} KB are rejected, and a failed import changes
-          nothing.
-        </p>
-        {error ? (
-          <p role="alert" className="form-error">
-            {error}
-          </p>
-        ) : null}
-        {confirming ? (
-          <div className="mt-5 rounded-md border border-black/15 p-3">
-            <p id="reset-warning">
-              This removes links, notes, and appearance stored by this homepage. Other browser data
-              stays.
+        {tab === 'general' ? (
+          <div role="tabpanel" aria-label="General">
+            <label className="preference-toggle">
+              <input
+                type="checkbox"
+                checked={prefs.openInNewTab}
+                onChange={(event) => onChange({ ...prefs, openInNewTab: event.target.checked })}
+              />
+              Open links in a new tab
+            </label>
+            <p className="mt-2 text-xs text-[var(--muted)]">
+              Quick links and tools. Search still opens in this tab.
             </p>
-            <div className="mt-3 flex justify-end gap-2">
-              <Button outline onClick={() => setConfirming(false)}>
-                Cancel reset
-              </Button>
-              <Button
-                onClick={() => {
-                  if (onReset()) onClose()
-                }}
-              >
-                Confirm reset
-              </Button>
+            <div className="backup-actions">
+              <label>
+                Import backup
+                <input
+                  hidden
+                  type="file"
+                  accept="application/json,.json"
+                  aria-label="Import backup"
+                  onChange={importFile}
+                />
+              </label>
+              <button type="button" onClick={onExport}>
+                Export backup
+              </button>
+              <label>
+                Import links
+                <input
+                  hidden
+                  type="file"
+                  accept="application/json,.json,text/html,.html,.htm"
+                  aria-label="Import links file"
+                  onChange={importLinks}
+                />
+              </label>
             </div>
+            <p className="mt-3 text-xs text-[var(--muted)]">
+              Backups include links, notes, and appearance. Files over{' '}
+              {Math.round(LIMITS.importBytes / 1024)} KB are rejected, and a failed import changes
+              nothing.
+            </p>
+            <p className="mt-3 text-xs text-[var(--muted)]">
+              Import links reads a Chrome, Edge, Firefox, or Safari bookmark export, or a JSON list.
+              You review the mapping before anything is saved. Files over{' '}
+              {Math.round(LIMITS.bookmarkImportBytes / (1024 * 1024))} MB are rejected.
+            </p>
+            {error ? (
+              <p role="alert" className="form-error">
+                {error}
+              </p>
+            ) : null}
+            {confirming ? (
+              <div className="mt-5 rounded-md border border-black/15 p-3">
+                <p id="reset-warning">
+                  This removes links, notes, and appearance stored by this homepage. Other browser
+                  data stays.
+                </p>
+                <div className="mt-3 flex justify-end gap-2">
+                  <Button outline onClick={() => setConfirming(false)}>
+                    Cancel reset
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (onReset()) onClose()
+                    }}
+                  >
+                    Confirm reset
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
-        ) : null}
+        ) : (
+          <div role="tabpanel" aria-label="Model accounts" id="model-accounts">
+            <ModelAccountsPanel active={tab === 'model-accounts'} compact />
+          </div>
+        )}
       </DialogBody>
       <DialogActions>
-        <Button
-          outline
-          onClick={() => setConfirming(true)}
-          aria-describedby={confirming ? 'reset-warning' : undefined}
-        >
-          Reset app data
-        </Button>
+        {tab === 'general' ? (
+          <Button
+            outline
+            onClick={() => setConfirming(true)}
+            aria-describedby={confirming ? 'reset-warning' : undefined}
+          >
+            Reset app data
+          </Button>
+        ) : null}
         <Button onClick={onClose}>Done</Button>
       </DialogActions>
     </>
