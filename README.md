@@ -1,6 +1,3 @@
-> [!IMPORTANT]
-> Remove this line to confirm a human reviewed this change before submitting.
-
 # browser_home
 
 A start page for Safari on your own Mac. Links, notes, and appearance stay in that browser, for one address. There is no account and no analytics.
