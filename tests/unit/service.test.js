@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   install,
@@ -13,6 +14,11 @@ import {
   writePlist,
 } from '../../scripts/home-service.js'
 
+const launcherFile = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../scripts/home-launch.sh',
+)
+
 function fixture() {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'home user-'))
   const buildDir = path.join(home, 'build')
@@ -22,12 +28,14 @@ function fixture() {
   fs.writeFileSync(path.join(buildDir, 'index.html'), '<h1>home</h1>')
   fs.writeFileSync(nodePath, '')
   const serverFile = path.join(home, 'server.js')
+  const hubIndexFile = path.join(home, 'hub-index.js')
   const modelAskFile = path.join(home, 'model-ask.js')
   const modelSecretStoreFile = path.join(home, 'model-secret-store.js')
   const modelBillingFile = path.join(home, 'model-billing.js')
   const askModelsDocFile = path.join(home, 'ask-models.md')
   const configFile = path.join(home, 'homepage.config.json')
   fs.writeFileSync(serverFile, 'export {}\n')
+  fs.writeFileSync(hubIndexFile, 'export const OPEN_APP_ALLOWLIST = new Set()\n')
   fs.writeFileSync(modelAskFile, 'export {}\n')
   fs.writeFileSync(modelSecretStoreFile, 'export {}\n')
   fs.writeFileSync(modelBillingFile, 'export {}\n')
@@ -41,11 +49,13 @@ function fixture() {
     nodePath,
     buildDir,
     serverFile,
+    hubIndexFile,
     modelAskFile,
     modelSecretStoreFile,
     modelBillingFile,
     askModelsDocFile,
     configFile,
+    launcherFile,
     execFile(command, args) {
       expect(command).toBe('plutil')
       fs.copyFileSync(args[2], args[4])
@@ -66,11 +76,16 @@ describe('macOS service', () => {
     const paths = servicePaths(home)
     const agent = JSON.parse(fs.readFileSync(paths.plistPath, 'utf8'))
     expect(agent.ProgramArguments).toEqual([
-      deps.nodePath,
+      path.join(paths.current, 'home-launch.sh'),
       path.join(paths.current, 'server.js'),
       '--root',
       path.join(paths.current, 'dist'),
     ])
+    expect(agent.EnvironmentVariables).toEqual({ HOME: home })
+    expect(fs.readFileSync(path.join(paths.current, 'node-path'), 'utf8').trim()).toBe(
+      deps.nodePath,
+    )
+    expect(fs.statSync(path.join(paths.current, 'home-launch.sh')).mode & 0o111).not.toBe(0)
     expect(agent.ThrottleInterval).toBe(10)
     expect(calls.some((call) => call[1] === 'bootstrap')).toBe(true)
     expect(fs.readFileSync(path.join(paths.current, 'dist', 'index.html'), 'utf8')).toContain(
@@ -79,6 +94,7 @@ describe('macOS service', () => {
     expect(fs.readFileSync(path.join(paths.current, 'homepage.config.json'), 'utf8')).toContain(
       'home.localhost',
     )
+    expect(fs.existsSync(path.join(paths.current, 'hub-index.js'))).toBe(true)
     expect(fs.existsSync(path.join(paths.current, 'model-ask.js'))).toBe(true)
     expect(fs.existsSync(path.join(paths.current, 'model-secret-store.js'))).toBe(true)
     expect(fs.existsSync(path.join(paths.current, 'model-billing.js'))).toBe(true)
@@ -134,5 +150,29 @@ describe('macOS service', () => {
       ProgramArguments: ['/usr/bin/node', '/tmp/server.js'],
     })
     expect(() => execFileSync('plutil', ['-lint', plistPath], { stdio: 'pipe' })).not.toThrow()
+  })
+
+  it('starts the recorded Node, then a later install when that binary is gone', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'launch-'))
+    const launcher = path.join(root, 'home-launch.sh')
+    fs.copyFileSync(launcherFile, launcher)
+    fs.chmodSync(launcher, 0o755)
+    const recorded = path.join(root, 'Node App', 'node')
+    const older = path.join(root, 'nvm/versions/node/v9.0.0/bin/node')
+    const newer = path.join(root, 'nvm/versions/node/v10.0.0/bin/node')
+    for (const file of [recorded, older, newer]) {
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+      fs.writeFileSync(file, '#!/bin/sh\nprintf "%s\\n" "$0"\n')
+      fs.chmodSync(file, 0o755)
+    }
+    fs.writeFileSync(path.join(root, 'node-path'), `${recorded}\n`)
+    const run = () =>
+      execFileSync(launcher, ['server.js', '--root', 'dist'], {
+        encoding: 'utf8',
+        env: { PATH: '/usr/bin:/bin', HOME: root, BROWSER_HOME_LIB_ROOT: root },
+      }).trim()
+    expect(run()).toBe(recorded)
+    fs.writeFileSync(path.join(root, 'node-path'), `${path.join(root, 'gone')}\n`)
+    expect(run()).toBe(newer)
   })
 })

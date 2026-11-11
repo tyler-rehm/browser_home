@@ -112,6 +112,48 @@ describe('homepage', () => {
     expect(document.getElementById('content')?.tagName).toBe('MAIN')
   })
 
+  it('opens the Index hub with tools, docs, vault paths, and DB ports', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Index' }))
+    const hub = screen.getByRole('region', { name: 'Index hub' })
+    expect(within(hub).getByRole('heading', { name: 'Work surfaces' })).toBeInTheDocument()
+    expect(within(hub).getByRole('tab', { name: 'Tools' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(hub).getByText('DBeaver')).toBeInTheDocument()
+    expect(within(hub).getByText('Twenty CRM')).toBeInTheDocument()
+    await user.click(within(hub).getByRole('tab', { name: 'Documentation' }))
+    expect(within(hub).getByText('DB ports dashboard')).toBeInTheDocument()
+    expect(within(hub).getByRole('link', { name: 'Open DB ports dashboard' })).toHaveAttribute(
+      'href',
+      '/vault-docs/overnight/db-ports-dashboard-2026-11-11.md',
+    )
+    await user.click(within(hub).getByRole('tab', { name: 'Canvases' }))
+    expect(within(hub).getByText('Fleet Progress')).toBeInTheDocument()
+    expect(within(hub).getByRole('link', { name: 'Open Fleet Progress' })).toHaveAttribute(
+      'href',
+      'https://cursor.com/canvas/store-0a170408-6dce-415f-ad22-2f4038f2354e/6e7be0c2-d4b5-4db1-a321-a289005dc03c',
+    )
+    await user.click(
+      within(hub).getByRole('button', { name: 'Hide Fleet Progress from local-home' }),
+    )
+    expect(within(hub).queryByText('Fleet Progress')).not.toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem(KEYS.hubHiddenCanvases))).toContain(
+      '6e7be0c2-d4b5-4db1-a321-a289005dc03c',
+    )
+    await user.click(within(hub).getByRole('button', { name: /Show hidden/ }))
+    expect(within(hub).getByText('Fleet Progress')).toBeInTheDocument()
+    await user.click(within(hub).getByRole('tab', { name: 'Drive / Vault' }))
+    expect(within(hub).getByText('Career overnight docs')).toBeInTheDocument()
+    await user.click(within(hub).getByRole('tab', { name: 'Local DB ports' }))
+    expect(within(hub).getByRole('table', { name: 'Local DB ports' })).toBeInTheDocument()
+    expect(within(hub).getByText('54329')).toBeInTheDocument()
+    expect(within(hub).getByText('63790')).toBeInTheDocument()
+    expect(hub.textContent).not.toMatch(/pbcopy|ilt\.[a-z0-9.-]+\.[a-z0-9.-]+/)
+    await user.click(screen.getByRole('button', { name: 'Index' }))
+    expect(screen.queryByRole('region', { name: 'Index hub' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Quick links' })).toBeInTheDocument()
+  })
+
   it('keeps a link icon color when the card moves', async () => {
     const user = userEvent.setup()
     localStorage.setItem(

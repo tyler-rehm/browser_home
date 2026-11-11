@@ -1,7 +1,9 @@
+import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { CAREER_VAULT_DIR, OPEN_APP_ALLOWLIST } from './hub-index.js'
 import { loadProviderBilling } from './model-billing.js'
 import {
   BODY_MAX,
@@ -71,6 +73,52 @@ const MIME = {
 
 export function defaultDocsRoot() {
   return path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'docs')
+}
+
+export function defaultVaultDocsRoot() {
+  return CAREER_VAULT_DIR
+}
+
+export function openAllowedApp(app, { spawnImpl = spawn } = {}) {
+  if (!OPEN_APP_ALLOWLIST.has(app)) {
+    return Promise.resolve({ ok: false, status: 400, error: 'App is not allowlisted.' })
+  }
+  return new Promise((resolve) => {
+    const child = spawnImpl('open', ['-a', app], { stdio: 'ignore' })
+    child.on('error', () => {
+      resolve({ ok: false, status: 500, error: `Could not open ${app}.` })
+    })
+    child.on('exit', (code) => {
+      if (code === 0) resolve({ ok: true })
+      else resolve({ ok: false, status: 500, error: `Could not open ${app}.` })
+    })
+  })
+}
+
+function serveMarkdownFromRoot(req, res, docsRoot, relative) {
+  if (!relative || relative.includes('..') || path.isAbsolute(relative)) {
+    send(req, res, 404, 'Not found')
+    return
+  }
+  const target = path.resolve(docsRoot, relative)
+  if (!insideRoot(docsRoot, target)) {
+    send(req, res, 404, 'Not found')
+    return
+  }
+  let real
+  try {
+    real = fs.realpathSync(target)
+  } catch {
+    send(req, res, 404, 'Not found')
+    return
+  }
+  if (!insideRoot(docsRoot, real) || !fs.statSync(real).isFile()) {
+    send(req, res, 404, 'Not found')
+    return
+  }
+  const markdown = fs.readFileSync(real, 'utf8')
+  const title = path.basename(real)
+  send(req, res, 200, renderMarkdownDocPage(title, markdown), 'text/html; charset=utf-8')
 }
 
 export function renderMarkdownDocPage(title, markdown) {
@@ -330,6 +378,18 @@ async function handleProviderModel(
   sendJson(req, res, 200, { providers: result.providers })
 }
 
+async function handleOpenApp(req, res, { openAppImpl }) {
+  const body = await readJsonBody(req, res)
+  if (!body) return
+  const app = typeof body.app === 'string' ? body.app.trim() : ''
+  const result = await openAppImpl(app)
+  if (!result.ok) {
+    send(req, res, result.status || 400, result.error || 'Bad request.')
+    return
+  }
+  sendJson(req, res, 200, { ok: true, app })
+}
+
 export async function handleHomepageRequest(req, res, options) {
   const {
     root,
@@ -338,7 +398,9 @@ export async function handleHomepageRequest(req, res, options) {
     secretsFile = resolveSecretsFile(),
     loadSecretsImpl = loadSecrets,
     updateProviderModelImpl = updateProviderModel,
+    openAppImpl = openAllowedApp,
     docsRoot = null,
+    vaultDocsRoot = null,
   } = options
   if (!req.headers.host || !allowedHosts(port).has(req.headers.host)) {
     send(req, res, 421, 'Misdirected request')
@@ -379,6 +441,10 @@ export async function handleHomepageRequest(req, res, options) {
     })
     return
   }
+  if (req.method === 'POST' && pathname === '/api/open-app') {
+    await handleOpenApp(req, res, { openAppImpl })
+    return
+  }
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     send(req, res, 405, 'Method not allowed', 'text/plain; charset=utf-8', {
       allow: 'GET, HEAD, POST',
@@ -391,29 +457,13 @@ export async function handleHomepageRequest(req, res, options) {
   }
   if (docsRoot && (pathname === '/docs' || pathname.startsWith('/docs/'))) {
     const relative = pathname === '/docs' ? 'ask-models.md' : pathname.slice('/docs/'.length)
-    if (!relative || relative.includes('..') || path.isAbsolute(relative)) {
-      send(req, res, 404, 'Not found')
-      return
-    }
-    const target = path.resolve(docsRoot, relative)
-    if (!insideRoot(docsRoot, target)) {
-      send(req, res, 404, 'Not found')
-      return
-    }
-    let real
-    try {
-      real = fs.realpathSync(target)
-    } catch {
-      send(req, res, 404, 'Not found')
-      return
-    }
-    if (!insideRoot(docsRoot, real) || !fs.statSync(real).isFile()) {
-      send(req, res, 404, 'Not found')
-      return
-    }
-    const markdown = fs.readFileSync(real, 'utf8')
-    const title = path.basename(real)
-    send(req, res, 200, renderMarkdownDocPage(title, markdown), 'text/html; charset=utf-8')
+    serveMarkdownFromRoot(req, res, docsRoot, relative)
+    return
+  }
+  if (vaultDocsRoot && (pathname === '/vault-docs' || pathname.startsWith('/vault-docs/'))) {
+    const relative =
+      pathname === '/vault-docs' ? 'README.md' : pathname.slice('/vault-docs/'.length)
+    serveMarkdownFromRoot(req, res, vaultDocsRoot, relative)
     return
   }
   const relative = pathname.replace(/^\/+/, '')
@@ -472,7 +522,9 @@ export function createHomepageServer({
   secretsFile = resolveSecretsFile(),
   loadSecretsImpl = loadSecrets,
   updateProviderModelImpl = updateProviderModel,
+  openAppImpl = openAllowedApp,
   docsRoot = defaultDocsRoot(),
+  vaultDocsRoot = defaultVaultDocsRoot(),
 }) {
   const rootReal = fs.realpathSync(root)
   let docsReal = null
@@ -481,6 +533,14 @@ export function createHomepageServer({
       docsReal = fs.realpathSync(docsRoot)
     } catch {
       docsReal = null
+    }
+  }
+  let vaultDocsReal = null
+  if (vaultDocsRoot && fs.existsSync(vaultDocsRoot)) {
+    try {
+      vaultDocsReal = fs.realpathSync(vaultDocsRoot)
+    } catch {
+      vaultDocsReal = null
     }
   }
   const onRequest = (req, res) => {
@@ -494,7 +554,9 @@ export function createHomepageServer({
         secretsFile,
         loadSecretsImpl,
         updateProviderModelImpl,
+        openAppImpl,
         docsRoot: docsReal,
+        vaultDocsRoot: vaultDocsReal,
       }),
     ).catch(() => {
       if (!res.headersSent) send(req, res, 500, 'Bad request')
@@ -538,7 +600,8 @@ export function main(argv = process.argv.slice(2)) {
   }
   const besideInstall = path.join(path.dirname(root), 'docs')
   const docsRoot = fs.existsSync(besideInstall) ? besideInstall : defaultDocsRoot()
-  const homepage = createHomepageServer({ root, docsRoot, also: ['::1'] })
+  const vaultDocsRoot = defaultVaultDocsRoot()
+  const homepage = createHomepageServer({ root, docsRoot, vaultDocsRoot, also: ['::1'] })
   homepage.listen().then(
     (address) => {
       console.log(`Homepage at ${homepageOrigin(address.port)}`)

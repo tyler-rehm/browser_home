@@ -3,6 +3,8 @@ export const KEYS = {
   notes: 'code-home-notes',
   preferences: 'code-home-preferences',
   groups: 'code-home-groups',
+  hubHiddenCanvases: 'code-home-hub-hidden-canvases',
+  hubRemovedCanvases: 'code-home-hub-removed-canvases',
 }
 
 export const APP_KEYS = [KEYS.links, KEYS.notes, KEYS.preferences, KEYS.groups]
