@@ -2,8 +2,9 @@
 
 ## Unreleased
 
-- Add an Index surface (topbar) with Tools, Documentation, Drive/Vault locations, and Local DB ports.
+- Add an Index surface (topbar) with Tools, Documentation, Canvases, Drive/Vault locations, and Local DB ports.
 - Serve career vault markdown under `/vault-docs/` and allowlist `open -a` for DBeaver and Hoppscotch via `/api/open-app`.
+- Index Canvases tab links Cursor boards with local-only Hide / Remove (does not touch canvas source files).
 
 ## 1.1.0 - 2026-10-08
 

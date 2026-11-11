@@ -199,6 +199,14 @@ main {
     11px DM Mono,
     monospace;
 }
+.hub-hidden-block {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.hub-canvases .hub-list {
+  margin-top: 4px;
+}
 .ask-models-prompt {
   height: 9rem;
   margin-top: 7px;

@@ -213,9 +213,46 @@ export const HUB_DB_PORTS = [
 
 export const OPEN_APP_ALLOWLIST = new Set(['DBeaver', 'Hoppscotch'])
 
+/** Cursor canvases used by Resource Vaults / career work. Hide/remove is local-home only. */
+export const CANVAS_STORE = 'store-0a170408-6dce-415f-ad22-2f4038f2354e'
+
+export const HUB_CANVASES = [
+  {
+    id: '6e7be0c2-d4b5-4db1-a321-a289005dc03c',
+    name: 'Fleet Progress',
+    detail: 'Live fleet board · proposed next',
+    url: `https://cursor.com/canvas/${CANVAS_STORE}/6e7be0c2-d4b5-4db1-a321-a289005dc03c`,
+  },
+  {
+    id: '1796adaf-57ab-415f-aa20-e926d971d405',
+    name: 'Career Growth Engine',
+    detail: 'Career vault dashboard',
+    url: `https://cursor.com/canvas/${CANVAS_STORE}/1796adaf-57ab-415f-aa20-e926d971d405`,
+  },
+  {
+    id: 'fe012ad3-c98f-420e-aa8b-2bc4bf5e067d',
+    name: 'Resource Vaults dashboard',
+    detail: 'Birds-eye across vaults',
+    url: `https://cursor.com/canvas/${CANVAS_STORE}/fe012ad3-c98f-420e-aa8b-2bc4bf5e067d`,
+  },
+  {
+    id: '0af2cbfc-78a1-4c36-a789-99236e531ef0',
+    name: 'Local DB ports dashboard',
+    detail: 'Pinned local Docker ports',
+    url: `https://cursor.com/canvas/${CANVAS_STORE}/0af2cbfc-78a1-4c36-a789-99236e531ef0`,
+  },
+  {
+    id: '564fe839-f3aa-4c34-8bd8-5e1f85f51857',
+    name: 'Email Arbitrage fleet',
+    detail: 'Email arbitrage board',
+    url: `https://cursor.com/canvas/${CANVAS_STORE}/564fe839-f3aa-4c34-8bd8-5e1f85f51857`,
+  },
+]
+
 export const HUB_SECTIONS = [
   { id: 'tools', label: 'Tools' },
   { id: 'docs', label: 'Documentation' },
+  { id: 'canvases', label: 'Canvases' },
   { id: 'locations', label: 'Drive / Vault' },
   { id: 'ports', label: 'Local DB ports' },
 ]

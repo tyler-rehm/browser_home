@@ -127,6 +127,21 @@ describe('homepage', () => {
       'href',
       '/vault-docs/overnight/db-ports-dashboard-2026-11-11.md',
     )
+    await user.click(within(hub).getByRole('tab', { name: 'Canvases' }))
+    expect(within(hub).getByText('Fleet Progress')).toBeInTheDocument()
+    expect(within(hub).getByRole('link', { name: 'Open Fleet Progress' })).toHaveAttribute(
+      'href',
+      'https://cursor.com/canvas/store-0a170408-6dce-415f-ad22-2f4038f2354e/6e7be0c2-d4b5-4db1-a321-a289005dc03c',
+    )
+    await user.click(
+      within(hub).getByRole('button', { name: 'Hide Fleet Progress from local-home' }),
+    )
+    expect(within(hub).queryByText('Fleet Progress')).not.toBeInTheDocument()
+    expect(JSON.parse(localStorage.getItem(KEYS.hubHiddenCanvases))).toContain(
+      '6e7be0c2-d4b5-4db1-a321-a289005dc03c',
+    )
+    await user.click(within(hub).getByRole('button', { name: /Show hidden/ }))
+    expect(within(hub).getByText('Fleet Progress')).toBeInTheDocument()
     await user.click(within(hub).getByRole('tab', { name: 'Drive / Vault' }))
     expect(within(hub).getByText('Career overnight docs')).toBeInTheDocument()
     await user.click(within(hub).getByRole('tab', { name: 'Local DB ports' }))
