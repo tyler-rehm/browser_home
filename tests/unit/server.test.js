@@ -58,7 +58,7 @@ function request({ port, method = 'GET', requestPath = '/', host, body }) {
   })
 }
 
-async function site({ secrets = '', fetchImpl } = {}) {
+async function site({ secrets = '', fetchImpl, openAppImpl } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'home-site-'))
   fs.writeFileSync(path.join(root, 'index.html'), '<h1>home</h1>')
   fs.writeFileSync(path.join(root, 'app.js'), 'console.log(1)')
@@ -67,6 +67,13 @@ async function site({ secrets = '', fetchImpl } = {}) {
   fs.writeFileSync(
     path.join(docsRoot, 'ask-models.md'),
     '# Ask models\n\n<a id="refresh-chatgpt"></a>\n### Refresh ChatGPT\nAdd credits.\n',
+  )
+  const vaultDocsRoot = path.join(root, 'vault-docs')
+  fs.mkdirSync(path.join(vaultDocsRoot, 'overnight'), { recursive: true })
+  fs.writeFileSync(path.join(vaultDocsRoot, 'README.md'), '# Career vault\n')
+  fs.writeFileSync(
+    path.join(vaultDocsRoot, 'overnight', 'db-ports-dashboard-2026-11-11.md'),
+    '# Ports\n\n54329 privacy-zero\n',
   )
   const secretsFile = path.join(root, 'model-secrets.json')
   if (secrets) fs.writeFileSync(secretsFile, secrets)
@@ -93,11 +100,13 @@ async function site({ secrets = '', fetchImpl } = {}) {
     fetchImpl: fetch,
     loadSecretsImpl,
     updateProviderModelImpl,
+    openAppImpl,
     docsRoot,
+    vaultDocsRoot,
   })
   servers.push(server)
   const address = await server.listen()
-  return { root, docsRoot, port: address.port, calls, secretsFile }
+  return { root, docsRoot, vaultDocsRoot, port: address.port, calls, secretsFile }
 }
 
 describe('production server', () => {
@@ -324,6 +333,50 @@ describe('production server', () => {
     expect(doc.body).toContain('Refresh ChatGPT')
     const missing = await request({ port, requestPath: '/docs/missing.md' })
     expect(missing.status).toBe(404)
+  })
+
+  it('serves vault docs and opens allowlisted local apps', async () => {
+    const opened = []
+    const { port } = await site({
+      openAppImpl: async (app) => {
+        opened.push(app)
+        if (app === 'DBeaver') return { ok: true }
+        return { ok: false, status: 400, error: 'App is not allowlisted.' }
+      },
+    })
+    const vault = await request({
+      port,
+      requestPath: '/vault-docs/overnight/db-ports-dashboard-2026-11-11.md',
+    })
+    expect(vault.status).toBe(200)
+    expect(vault.body).toContain('54329 privacy-zero')
+    const rootDoc = await request({ port, requestPath: '/vault-docs' })
+    expect(rootDoc.status).toBe(200)
+    expect(rootDoc.body).toContain('Career vault')
+    const traversal = await request({
+      port,
+      requestPath: '/vault-docs/..%2fdocs/ask-models.md',
+    })
+    expect(traversal.status).toBe(404)
+    expect(traversal.body).not.toContain('Refresh ChatGPT')
+    const missingVault = await request({ port, requestPath: '/vault-docs/missing.md' })
+    expect(missingVault.status).toBe(404)
+    const openOk = await request({
+      port,
+      method: 'POST',
+      requestPath: '/api/open-app',
+      body: JSON.stringify({ app: 'DBeaver' }),
+    })
+    expect(openOk.status).toBe(200)
+    expect(JSON.parse(openOk.body)).toEqual({ ok: true, app: 'DBeaver' })
+    const openBad = await request({
+      port,
+      method: 'POST',
+      requestPath: '/api/open-app',
+      body: JSON.stringify({ app: 'Calculator' }),
+    })
+    expect(openBad.status).toBe(400)
+    expect(opened).toEqual(['DBeaver', 'Calculator'])
   })
 
   it('starts only when node executes server.js itself', () => {

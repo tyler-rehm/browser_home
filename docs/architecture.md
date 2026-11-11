@@ -8,6 +8,6 @@ Links stay a JSON array under `code-home-links`. Optional fields are `id`, `grou
 
 Ask models is served there, not by the Vite dev server. `GET /api/providers` lists Claude, ChatGPT, Gemini, and Grok without API keys. `POST /api/ask` sends one prompt to one provider. Keys are read from `CODE_HOME_SECRETS_FILE` when that variable is set, otherwise from `~/Library/Application Support/browser-home/model-secrets.json`. Point that path at the iCloud file, or symlink it. The server never writes the file. Logs stay lifecycle messages: no prompt, no reply, and no key.
 
-`scripts/home-service.js` is optional. It copies the build into `~/Library/Application Support/browser-home` and registers a user LaunchAgent. Tests call it with temporary directories and do not register a service on the developer machine.
+`scripts/home-service.js` is optional. It copies the build into `~/Library/Application Support/browser-home` and registers a user LaunchAgent. The agent runs `scripts/home-launch.sh`, which resolves Node at login so a Homebrew or nvm upgrade does not leave the plist pointed at a deleted binary. Tests call it with temporary directories and do not register a service on the developer machine.
 
 Personal data stays in browser storage for the pinned origin. `127.0.0.1` and `localhost` are different origins and will not see those records.

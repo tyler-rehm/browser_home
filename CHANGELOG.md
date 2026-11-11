@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add an Index surface (topbar) with Tools, Documentation, Drive/Vault locations, and Local DB ports.
+- Serve career vault markdown under `/vault-docs/` and allowlist `open -a` for DBeaver and Hoppscotch via `/api/open-app`.
+
 ## 1.1.0 - 2026-10-08
 
 - Add Ask models: send one prompt to Claude, ChatGPT, Gemini, Grok, and Perplexity and copy a dossier of replies.

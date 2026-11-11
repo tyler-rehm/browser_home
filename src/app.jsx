@@ -15,6 +15,7 @@ import { Button } from './components/button'
 import { Dialog, DialogActions, DialogBody, DialogTitle } from './components/dialog'
 import { GroupDialog } from './components/group-dialog'
 import { ImportLinksDialog } from './components/import-links-dialog'
+import { IndexHub } from './components/index-hub'
 import { PreferencesDialog, SettingsDialog } from './components/preferences-dialog'
 import { DroppableTab, QuickLinkOverlay, SortableQuickLink } from './components/quick-link-card'
 import { DEFAULT_LINKS, DEFAULT_PREFERENCES, TOOLS } from './data'
@@ -102,6 +103,7 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] = useState('')
   const [askOpen, setAskOpen] = useState(false)
+  const [surface, setSurface] = useState('home')
   const [linkImport, setLinkImport] = useState(null)
   const [now, setNow] = useState(() => new Date())
   const [view, setView] = useState('all')
@@ -480,7 +482,15 @@ export function App() {
       </div>
       <main id="content" tabIndex={-1}>
         <header className="topbar">
-          <a className="brand" href="./" aria-label="Home">
+          <a
+            className="brand"
+            href="./"
+            aria-label="Home"
+            onClick={(event) => {
+              event.preventDefault()
+              setSurface('home')
+            }}
+          >
             <span className="brand-mark">C</span>
             <span>code / home</span>
           </a>
@@ -500,6 +510,16 @@ export function App() {
                 )}
               </span>
             </div>
+            <button
+              type="button"
+              className={
+                surface === 'index' ? 'ask-models-button is-active-surface' : 'ask-models-button'
+              }
+              aria-pressed={surface === 'index'}
+              onClick={() => setSurface((current) => (current === 'index' ? 'home' : 'index'))}
+            >
+              Index
+            </button>
             <button type="button" className="ask-models-button" onClick={() => setAskOpen(true)}>
               Ask models
             </button>
@@ -540,368 +560,383 @@ export function App() {
             </button>
           </div>
         ) : null}
-        <section className="hero">
-          <p className="eyebrow">YOUR WORKSPACE, ONE TAB</p>
-          <h1>{greeting}.</h1>
-          <form className="search" role="search" onSubmit={search}>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="m20 20-4-4" />
-            </svg>
-            <input
-              id="search-input"
-              name="query"
-              autoComplete="off"
-              autoFocus
-              placeholder="Search the web or type a URL"
-              aria-label="Search the web or type a URL"
-              aria-invalid={searchError ? 'true' : undefined}
-              aria-describedby={searchError ? 'search-error' : undefined}
-            />
-            <kbd aria-hidden="true">/</kbd>
-          </form>
-          {searchError ? (
-            <p id="search-error" role="alert" className="search-error">
-              {searchError}
-            </p>
-          ) : null}
-        </section>
-        <section className="section-head">
-          <div>
-            <p className="eyebrow">QUICK ACCESS</p>
-            <h2>Where to?</h2>
-          </div>
-          <div className="section-actions">
-            <button
-              className="section-icon"
-              type="button"
-              aria-pressed={archiveOpen}
-              aria-label={archived.length ? `Archive (${archived.length})` : 'Archive'}
-              data-tip={archived.length ? `Archive (${archived.length})` : 'Archive'}
-              onClick={() => setArchiveOpen((open) => !open)}
-            >
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M2 3h12v2H2z" />
-                <path d="M3 6h10v7H3z" />
-              </svg>
-              {archived.length ? (
-                <span className="section-icon-count" aria-hidden="true">
-                  {archived.length}
-                </span>
-              ) : null}
-            </button>
-            <button
-              className="section-icon"
-              type="button"
-              aria-label="Add link"
-              data-tip="Add link"
-              onClick={() => setEditor({ link: null, index: null })}
-            >
-              <svg viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8 2.5v11M2.5 8h11" />
-              </svg>
-            </button>
-            {archiveOpen ? null : (
-              <form className="link-filter" onSubmit={(event) => event.preventDefault()}>
-                <label htmlFor="link-filter">Filter links</label>
+        {surface === 'index' ? <IndexHub linkTarget={linkTarget} /> : null}
+        {surface === 'home' ? (
+          <>
+            <section className="hero">
+              <p className="eyebrow">YOUR WORKSPACE, ONE TAB</p>
+              <h1>{greeting}.</h1>
+              <form className="search" role="search" onSubmit={search}>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-4-4" />
+                </svg>
                 <input
-                  id="link-filter"
-                  type="search"
-                  value={linkQuery}
+                  id="search-input"
+                  name="query"
                   autoComplete="off"
-                  onChange={(event) => {
-                    setLinkQuery(event.target.value)
-                    setPage(1)
-                  }}
+                  autoFocus
+                  placeholder="Search the web or type a URL"
+                  aria-label="Search the web or type a URL"
+                  aria-invalid={searchError ? 'true' : undefined}
+                  aria-describedby={searchError ? 'search-error' : undefined}
                 />
+                <kbd aria-hidden="true">/</kbd>
               </form>
-            )}
-          </div>
-        </section>
-        <section className="quick-links" aria-label="Quick links">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={preferTabCollision}
-            autoScroll={false}
-            screenReaderInstructions={dragInstructions}
-            announcements={dragAnnouncements}
-            onDragStart={onDragStart}
-            onDragCancel={onDragCancel}
-            onDragEnd={onDragEnd}
-          >
-            {archiveOpen ? (
-              <div className="archive-panel">
-                {archived.length === 0 ? (
-                  <p className="empty-links">No archived links</p>
-                ) : (
-                  <table className="archive-table">
-                    <caption>Archived links</caption>
-                    <thead>
-                      <tr>
-                        <th scope="col">Link</th>
-                        <th scope="col">Archived</th>
-                        <th scope="col">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {archived.map((link) => (
-                        <tr key={link.id}>
-                          <td>
-                            <a href={link.url} {...linkTarget}>
-                              {link.name}
-                            </a>
-                            <small>{host(link.url)}</small>
-                          </td>
-                          <td>
-                            <time dateTime={link.archivedAt}>{archiveLabel(link.archivedAt)}</time>
-                          </td>
-                          <td className="archive-actions">
-                            <button
-                              className="text-button"
-                              type="button"
-                              aria-label={`Restore ${link.name}`}
-                              onClick={() => {
-                                changeLinks(
-                                  links.map((item) => {
-                                    if (item.id !== link.id) return item
-                                    const restored = { ...item }
-                                    delete restored.archivedAt
-                                    return restored
-                                  }),
-                                )
-                                setReorderNote(`${link.name} restored`)
-                              }}
-                            >
-                              Restore
-                            </button>
-                            <button
-                              className="text-button"
-                              type="button"
-                              aria-label={`Delete ${link.name}`}
-                              onClick={() => {
-                                changeLinks(links.filter((item) => item.id !== link.id))
-                                setReorderNote(`${link.name} deleted`)
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {searchError ? (
+                <p id="search-error" role="alert" className="search-error">
+                  {searchError}
+                </p>
+              ) : null}
+            </section>
+            <section className="section-head">
+              <div>
+                <p className="eyebrow">QUICK ACCESS</p>
+                <h2>Where to?</h2>
+              </div>
+              <div className="section-actions">
+                <button
+                  className="section-icon"
+                  type="button"
+                  aria-pressed={archiveOpen}
+                  aria-label={archived.length ? `Archive (${archived.length})` : 'Archive'}
+                  data-tip={archived.length ? `Archive (${archived.length})` : 'Archive'}
+                  onClick={() => setArchiveOpen((open) => !open)}
+                >
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M2 3h12v2H2z" />
+                    <path d="M3 6h10v7H3z" />
+                  </svg>
+                  {archived.length ? (
+                    <span className="section-icon-count" aria-hidden="true">
+                      {archived.length}
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  className="section-icon"
+                  type="button"
+                  aria-label="Add link"
+                  data-tip="Add link"
+                  onClick={() => setEditor({ link: null, index: null })}
+                >
+                  <svg viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M8 2.5v11M2.5 8h11" />
+                  </svg>
+                </button>
+                {archiveOpen ? null : (
+                  <form className="link-filter" onSubmit={(event) => event.preventDefault()}>
+                    <label htmlFor="link-filter">Filter links</label>
+                    <input
+                      id="link-filter"
+                      type="search"
+                      value={linkQuery}
+                      autoComplete="off"
+                      onChange={(event) => {
+                        setLinkQuery(event.target.value)
+                        setPage(1)
+                      }}
+                    />
+                  </form>
                 )}
               </div>
-            ) : null}
-            {archiveOpen ? null : (
-              <>
-                <div className="link-toolbar">
-                  <div
-                    className="link-tabs"
-                    role="tablist"
-                    aria-label="Link groups"
-                    onKeyDown={filtering ? undefined : onTabsKeyDown}
-                  >
-                    {filtering ? (
-                      <button
-                        id="tab-results"
-                        className="link-tab"
-                        role="tab"
-                        type="button"
-                        aria-selected="true"
-                        aria-controls="link-panel"
-                      >
-                        Results
-                      </button>
+            </section>
+            <section className="quick-links" aria-label="Quick links">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={preferTabCollision}
+                autoScroll={false}
+                screenReaderInstructions={dragInstructions}
+                announcements={dragAnnouncements}
+                onDragStart={onDragStart}
+                onDragCancel={onDragCancel}
+                onDragEnd={onDragEnd}
+              >
+                {archiveOpen ? (
+                  <div className="archive-panel">
+                    {archived.length === 0 ? (
+                      <p className="empty-links">No archived links</p>
                     ) : (
-                      <>
-                        {[
-                          ['favorites', 'Favorites'],
-                          ['all', 'All'],
-                        ].map(([id, label]) => (
-                          <DroppableTab
-                            key={id}
-                            id={id}
-                            label={label}
-                            selected={view === id}
-                            onSelect={() => selectView(id)}
-                          />
-                        ))}
-                        {groups.map((group) => (
-                          <DroppableTab
-                            key={group.id}
-                            id={group.id}
-                            label={group.name}
-                            selected={view === group.id}
-                            onSelect={() => selectView(group.id)}
-                          />
-                        ))}
-                      </>
+                      <table className="archive-table">
+                        <caption>Archived links</caption>
+                        <thead>
+                          <tr>
+                            <th scope="col">Link</th>
+                            <th scope="col">Archived</th>
+                            <th scope="col">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {archived.map((link) => (
+                            <tr key={link.id}>
+                              <td>
+                                <a href={link.url} {...linkTarget}>
+                                  {link.name}
+                                </a>
+                                <small>{host(link.url)}</small>
+                              </td>
+                              <td>
+                                <time dateTime={link.archivedAt}>
+                                  {archiveLabel(link.archivedAt)}
+                                </time>
+                              </td>
+                              <td className="archive-actions">
+                                <button
+                                  className="text-button"
+                                  type="button"
+                                  aria-label={`Restore ${link.name}`}
+                                  onClick={() => {
+                                    changeLinks(
+                                      links.map((item) => {
+                                        if (item.id !== link.id) return item
+                                        const restored = { ...item }
+                                        delete restored.archivedAt
+                                        return restored
+                                      }),
+                                    )
+                                    setReorderNote(`${link.name} restored`)
+                                  }}
+                                >
+                                  Restore
+                                </button>
+                                <button
+                                  className="text-button"
+                                  type="button"
+                                  aria-label={`Delete ${link.name}`}
+                                  onClick={() => {
+                                    changeLinks(links.filter((item) => item.id !== link.id))
+                                    setReorderNote(`${link.name} deleted`)
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     )}
                   </div>
-                  {filtering ? null : (
-                    <div className="group-actions">
-                      <button
-                        className="group-action"
-                        type="button"
-                        aria-label="Add group"
-                        onClick={() => setGroupEditor({ group: null })}
-                      >
-                        + Group
-                      </button>
-                      {selectedGroup ? (
-                        <button
-                          className="group-action"
-                          type="button"
-                          aria-label="Edit group"
-                          onClick={() => setGroupEditor({ group: selectedGroup })}
-                        >
-                          Edit
-                        </button>
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-                <div className="live-region" aria-live="polite">
-                  {filtering
-                    ? `${viewLinks.length} ${viewLinks.length === 1 ? 'result' : 'results'}`
-                    : ''}
-                </div>
-                <div
-                  id="link-panel"
-                  role="tabpanel"
-                  aria-labelledby={activeTabId}
-                  className="link-grid"
-                >
-                  {paged.total === 0 ? <p className="empty-links">{emptyCopy}</p> : null}
-                  <SortableContext
-                    items={paged.items.map((link) => link.id)}
-                    strategy={rectSortingStrategy}
-                  >
-                    {paged.items.map((link) => (
-                      <SortableQuickLink
-                        key={link.id}
-                        link={link}
-                        fill={link.color || prefs.ink}
-                        linkTarget={linkTarget}
-                        onFavorite={() =>
-                          changeLinks(
-                            links.map((item) =>
-                              item.id === link.id ? { ...item, favorite: !item.favorite } : item,
-                            ),
-                          )
-                        }
-                        onEdit={() =>
-                          setEditor({
-                            link,
-                            index: links.findIndex((item) => item.id === link.id),
-                          })
-                        }
-                        onArchive={() => {
-                          changeLinks(
-                            links.map((item) =>
-                              item.id === link.id
-                                ? { ...item, archivedAt: new Date().toISOString() }
-                                : item,
-                            ),
-                          )
-                          setReorderNote(`${link.name} archived`)
-                        }}
-                        onRemove={() => changeLinks(links.filter((item) => item.id !== link.id))}
-                        onMoveKey={(event) => {
-                          const delta =
-                            event.key === 'ArrowLeft' || event.key === 'ArrowUp'
-                              ? -1
-                              : event.key === 'ArrowRight' || event.key === 'ArrowDown'
-                                ? 1
-                                : 0
-                          if (!delta) return
-                          event.preventDefault()
-                          const fromVisible = paged.items.findIndex((item) => item.id === link.id)
-                          const toVisible = fromVisible + delta
-                          if (toVisible < 0 || toVisible >= paged.items.length) return
-                          moveLink(link.id, paged.items[toVisible].id)
-                        }}
-                      />
-                    ))}
-                  </SortableContext>
-                </div>
-                {viewLinks.length > LIMITS.pageSize ? (
-                  <nav className="pager" aria-label="Pagination">
-                    <button
-                      className="text-button"
-                      type="button"
-                      onClick={() => setPage(paged.page - 1)}
-                      disabled={paged.page <= 1}
-                    >
-                      Previous page
-                    </button>
-                    <span aria-live="polite">
-                      Page {paged.page} of {paged.pages}
-                    </span>
-                    <button
-                      className="text-button"
-                      type="button"
-                      onClick={() => setPage(paged.page + 1)}
-                      disabled={paged.page >= paged.pages}
-                    >
-                      Next page
-                    </button>
-                  </nav>
                 ) : null}
-              </>
-            )}
-            <DragOverlay>
-              {draggedLink ? (
-                <QuickLinkOverlay
-                  link={draggedLink}
-                  fill={draggedLink.color || prefs.ink}
-                  linkTarget={linkTarget}
+                {archiveOpen ? null : (
+                  <>
+                    <div className="link-toolbar">
+                      <div
+                        className="link-tabs"
+                        role="tablist"
+                        aria-label="Link groups"
+                        onKeyDown={filtering ? undefined : onTabsKeyDown}
+                      >
+                        {filtering ? (
+                          <button
+                            id="tab-results"
+                            className="link-tab"
+                            role="tab"
+                            type="button"
+                            aria-selected="true"
+                            aria-controls="link-panel"
+                          >
+                            Results
+                          </button>
+                        ) : (
+                          <>
+                            {[
+                              ['favorites', 'Favorites'],
+                              ['all', 'All'],
+                            ].map(([id, label]) => (
+                              <DroppableTab
+                                key={id}
+                                id={id}
+                                label={label}
+                                selected={view === id}
+                                onSelect={() => selectView(id)}
+                              />
+                            ))}
+                            {groups.map((group) => (
+                              <DroppableTab
+                                key={group.id}
+                                id={group.id}
+                                label={group.name}
+                                selected={view === group.id}
+                                onSelect={() => selectView(group.id)}
+                              />
+                            ))}
+                          </>
+                        )}
+                      </div>
+                      {filtering ? null : (
+                        <div className="group-actions">
+                          <button
+                            className="group-action"
+                            type="button"
+                            aria-label="Add group"
+                            onClick={() => setGroupEditor({ group: null })}
+                          >
+                            + Group
+                          </button>
+                          {selectedGroup ? (
+                            <button
+                              className="group-action"
+                              type="button"
+                              aria-label="Edit group"
+                              onClick={() => setGroupEditor({ group: selectedGroup })}
+                            >
+                              Edit
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                    <div className="live-region" aria-live="polite">
+                      {filtering
+                        ? `${viewLinks.length} ${viewLinks.length === 1 ? 'result' : 'results'}`
+                        : ''}
+                    </div>
+                    <div
+                      id="link-panel"
+                      role="tabpanel"
+                      aria-labelledby={activeTabId}
+                      className="link-grid"
+                    >
+                      {paged.total === 0 ? <p className="empty-links">{emptyCopy}</p> : null}
+                      <SortableContext
+                        items={paged.items.map((link) => link.id)}
+                        strategy={rectSortingStrategy}
+                      >
+                        {paged.items.map((link) => (
+                          <SortableQuickLink
+                            key={link.id}
+                            link={link}
+                            fill={link.color || prefs.ink}
+                            linkTarget={linkTarget}
+                            onFavorite={() =>
+                              changeLinks(
+                                links.map((item) =>
+                                  item.id === link.id
+                                    ? { ...item, favorite: !item.favorite }
+                                    : item,
+                                ),
+                              )
+                            }
+                            onEdit={() =>
+                              setEditor({
+                                link,
+                                index: links.findIndex((item) => item.id === link.id),
+                              })
+                            }
+                            onArchive={() => {
+                              changeLinks(
+                                links.map((item) =>
+                                  item.id === link.id
+                                    ? { ...item, archivedAt: new Date().toISOString() }
+                                    : item,
+                                ),
+                              )
+                              setReorderNote(`${link.name} archived`)
+                            }}
+                            onRemove={() =>
+                              changeLinks(links.filter((item) => item.id !== link.id))
+                            }
+                            onMoveKey={(event) => {
+                              const delta =
+                                event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+                                  ? -1
+                                  : event.key === 'ArrowRight' || event.key === 'ArrowDown'
+                                    ? 1
+                                    : 0
+                              if (!delta) return
+                              event.preventDefault()
+                              const fromVisible = paged.items.findIndex(
+                                (item) => item.id === link.id,
+                              )
+                              const toVisible = fromVisible + delta
+                              if (toVisible < 0 || toVisible >= paged.items.length) return
+                              moveLink(link.id, paged.items[toVisible].id)
+                            }}
+                          />
+                        ))}
+                      </SortableContext>
+                    </div>
+                    {viewLinks.length > LIMITS.pageSize ? (
+                      <nav className="pager" aria-label="Pagination">
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={() => setPage(paged.page - 1)}
+                          disabled={paged.page <= 1}
+                        >
+                          Previous page
+                        </button>
+                        <span aria-live="polite">
+                          Page {paged.page} of {paged.pages}
+                        </span>
+                        <button
+                          className="text-button"
+                          type="button"
+                          onClick={() => setPage(paged.page + 1)}
+                          disabled={paged.page >= paged.pages}
+                        >
+                          Next page
+                        </button>
+                      </nav>
+                    ) : null}
+                  </>
+                )}
+                <DragOverlay>
+                  {draggedLink ? (
+                    <QuickLinkOverlay
+                      link={draggedLink}
+                      fill={draggedLink.color || prefs.ink}
+                      linkTarget={linkTarget}
+                    />
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            </section>
+            <section className="lower-grid">
+              <article className="panel commands-panel">
+                <div className="panel-heading">
+                  <div>
+                    <p className="eyebrow">LAUNCH PAD</p>
+                    <h2>Useful tools</h2>
+                  </div>
+                </div>
+                <div className="tool-list">
+                  {TOOLS.map((tool, index) => (
+                    <a className="tool" href={tool.url} key={tool.url} {...linkTarget}>
+                      <span className="tool-number">0{index + 1}</span>
+                      <strong>{tool.name}</strong>
+                      <small>{tool.detail} ↗</small>
+                    </a>
+                  ))}
+                </div>
+              </article>
+              <article className="panel notes-panel">
+                <div className="panel-heading">
+                  <div>
+                    <p className="eyebrow">SCRATCHPAD</p>
+                    <h2>Keep a thought</h2>
+                  </div>
+                  <span
+                    className={
+                      noteStatus === 'saved locally' ? 'save-status is-saved' : 'save-status'
+                    }
+                    aria-live="polite"
+                  >
+                    {noteStatus}
+                  </span>
+                </div>
+                <textarea
+                  aria-label="Scratchpad"
+                  placeholder="Paste a command, leave a reminder, sketch an idea…"
+                  maxLength={LIMITS.noteLength}
+                  value={notes}
+                  onChange={(event) => changeNotes(event.target.value)}
                 />
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        </section>
-        <section className="lower-grid">
-          <article className="panel commands-panel">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">LAUNCH PAD</p>
-                <h2>Useful tools</h2>
-              </div>
-            </div>
-            <div className="tool-list">
-              {TOOLS.map((tool, index) => (
-                <a className="tool" href={tool.url} key={tool.url} {...linkTarget}>
-                  <span className="tool-number">0{index + 1}</span>
-                  <strong>{tool.name}</strong>
-                  <small>{tool.detail} ↗</small>
-                </a>
-              ))}
-            </div>
-          </article>
-          <article className="panel notes-panel">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">SCRATCHPAD</p>
-                <h2>Keep a thought</h2>
-              </div>
-              <span
-                className={noteStatus === 'saved locally' ? 'save-status is-saved' : 'save-status'}
-                aria-live="polite"
-              >
-                {noteStatus}
-              </span>
-            </div>
-            <textarea
-              aria-label="Scratchpad"
-              placeholder="Paste a command, leave a reminder, sketch an idea…"
-              maxLength={LIMITS.noteLength}
-              value={notes}
-              onChange={(event) => changeNotes(event.target.value)}
-            />
-          </article>
-        </section>
+              </article>
+            </section>
+          </>
+        ) : null}
       </main>
       <footer className="site-footer">
         <p>Code Home by Tyler Rehm · Ivy League Tech, LLC</p>

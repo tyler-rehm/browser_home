@@ -47,6 +47,8 @@ node scripts/home-service.js install
 
 That copies the build into `~/Library/Application Support/browser-home/current` and registers the launch agent `local.browser-home`. Logs go to `~/Library/Logs/browser-home/`. The helper does not open Safari. It only listens so the homepage is there when Safari asks for it.
 
+The agent starts `home-launch.sh`, not a Node path baked in from the day you installed it. While that Node binary still exists, the script uses it. After a Homebrew or nvm upgrade removes it, the script uses `/opt/homebrew/bin/node`, `/usr/local/bin/node`, the newest nvm install, or the newest Homebrew Cellar install. A Node upgrade does not require installing the helper again.
+
 ```sh
 node scripts/home-service.js status
 node scripts/home-service.js update    # after a new build

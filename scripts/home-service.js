@@ -18,11 +18,12 @@ export function servicePaths(home) {
   }
 }
 
-export function buildLaunchAgent({ nodePath, scriptPath, root, logDir }) {
+export function buildLaunchAgent({ launcherPath, scriptPath, root, logDir, home }) {
   return {
     Label: LABEL,
-    ProgramArguments: [nodePath, scriptPath, '--root', root],
+    ProgramArguments: [launcherPath, scriptPath, '--root', root],
     WorkingDirectory: path.dirname(scriptPath),
+    EnvironmentVariables: { HOME: home },
     RunAtLoad: true,
     KeepAlive: true,
     ThrottleInterval: 10,
@@ -49,9 +50,14 @@ export function replaceInstall(staging, current, previous) {
   try {
     fs.renameSync(staging, current)
     const index = path.join(current, 'dist', 'index.html')
-    const required = ['server.js', 'model-ask.js', 'model-secret-store.js', 'model-billing.js'].map(
-      (name) => path.join(current, name),
-    )
+    const required = [
+      'server.js',
+      'home-launch.sh',
+      'hub-index.js',
+      'model-ask.js',
+      'model-secret-store.js',
+      'model-billing.js',
+    ].map((name) => path.join(current, name))
     if (!fs.existsSync(index) || required.some((file) => !fs.existsSync(file))) {
       throw new Error('incomplete install')
     }
@@ -84,9 +90,10 @@ export function install(deps) {
   if (deps.platform !== 'darwin') return fail('Login startup is only implemented for macOS.')
   if (deps.uid === 0) return fail('Run the installer as your user, not as root.')
   if (!path.isAbsolute(deps.nodePath) || !fs.existsSync(deps.nodePath)) {
-    return fail(
-      'The Node executable path is not usable. Reinstall after Node is available at a stable path.',
-    )
+    return fail('Node was not found. Install Node 22.13 or newer and run this again.')
+  }
+  if (!deps.launcherFile || !fs.existsSync(deps.launcherFile)) {
+    return fail('The login launcher is missing.')
   }
   const index = path.join(deps.buildDir, 'index.html')
   if (!fs.existsSync(index) || !fs.statSync(index).isFile()) {
@@ -94,6 +101,9 @@ export function install(deps) {
   }
   if (!deps.configFile || !fs.existsSync(deps.configFile)) {
     return fail('Homepage address config is missing.')
+  }
+  if (!deps.hubIndexFile || !fs.existsSync(deps.hubIndexFile)) {
+    return fail('The Index hub catalog is missing.')
   }
   if (!deps.modelAskFile || !fs.existsSync(deps.modelAskFile)) {
     return fail('The model ask module is missing.')
@@ -113,25 +123,36 @@ export function install(deps) {
   fs.mkdirSync(paths.logDir, { recursive: true, mode: 0o755 })
   fs.cpSync(deps.buildDir, path.join(paths.staging, 'dist'), { recursive: true })
   fs.copyFileSync(deps.serverFile, path.join(paths.staging, 'server.js'))
+  fs.copyFileSync(deps.launcherFile, path.join(paths.staging, 'home-launch.sh'))
+  fs.writeFileSync(path.join(paths.staging, 'node-path'), `${deps.nodePath}\n`, { mode: 0o644 })
+  fs.copyFileSync(deps.hubIndexFile, path.join(paths.staging, 'hub-index.js'))
   fs.copyFileSync(deps.modelAskFile, path.join(paths.staging, 'model-ask.js'))
   fs.copyFileSync(deps.modelSecretStoreFile, path.join(paths.staging, 'model-secret-store.js'))
   fs.copyFileSync(deps.modelBillingFile, path.join(paths.staging, 'model-billing.js'))
   fs.copyFileSync(deps.configFile, path.join(paths.staging, 'homepage.config.json'))
   fs.mkdirSync(path.join(paths.staging, 'docs'), { recursive: true, mode: 0o755 })
   fs.copyFileSync(deps.askModelsDocFile, path.join(paths.staging, 'docs', 'ask-models.md'))
-  for (const name of ['server.js', 'model-ask.js', 'model-secret-store.js', 'model-billing.js']) {
+  for (const name of [
+    'server.js',
+    'hub-index.js',
+    'model-ask.js',
+    'model-secret-store.js',
+    'model-billing.js',
+  ]) {
     fs.chmodSync(path.join(paths.staging, name), 0o644)
   }
+  fs.chmodSync(path.join(paths.staging, 'home-launch.sh'), 0o755)
   try {
     replaceInstall(paths.staging, paths.current, paths.previous)
   } catch {
     return fail('Install failed and the previous copy was restored.')
   }
   const agent = buildLaunchAgent({
-    nodePath: deps.nodePath,
+    launcherPath: path.join(paths.current, 'home-launch.sh'),
     scriptPath: path.join(paths.current, 'server.js'),
     root: path.join(paths.current, 'dist'),
     logDir: paths.logDir,
+    home: deps.home,
   })
   try {
     writePlist(paths.plistPath, agent, deps.execFile)
@@ -202,8 +223,10 @@ function liveDeps(argv) {
     uid: typeof process.getuid === 'function' ? process.getuid() : 501,
     home: os.homedir(),
     nodePath: process.execPath,
+    launcherFile: path.join(path.dirname(fileURLToPath(import.meta.url)), 'home-launch.sh'),
     buildDir: path.resolve(buildFlag >= 0 ? argv[buildFlag + 1] : path.join(process.cwd(), 'dist')),
     serverFile: path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/server.js'),
+    hubIndexFile: path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/hub-index.js'),
     modelAskFile: path.join(path.dirname(fileURLToPath(import.meta.url)), '../src/model-ask.js'),
     modelSecretStoreFile: path.join(
       path.dirname(fileURLToPath(import.meta.url)),
